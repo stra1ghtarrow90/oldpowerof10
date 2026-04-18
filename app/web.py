@@ -3,14 +3,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, abort, render_template, request, send_from_directory
+from flask import Flask, abort, redirect, render_template, request, send_from_directory
 
 from .db import get_conn
 
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSET_ROOT = ROOT / "thepowerof10.info"
-FRONTPAGE_ASSET_ROOT = ROOT / "frontpage" / "Power of 10_files"
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 
@@ -28,11 +27,6 @@ def favicon():
 @app.route("/thepowerof10.info/<path:asset_path>")
 def legacy_assets(asset_path: str):
     return send_from_directory(ASSET_ROOT, asset_path)
-
-
-@app.route("/frontpage-assets/<path:asset_path>")
-def frontpage_assets(asset_path: str):
-    return send_from_directory(FRONTPAGE_ASSET_ROOT, asset_path)
 
 
 def summary_counts(conn):
@@ -141,6 +135,29 @@ def home():
         has_search=has_search,
         athlete_count=summary["athlete_count"],
         performance_count=summary["performance_count"],
+    )
+
+
+@app.route("/rankings")
+@app.route("/rankings/")
+def rankings():
+    return render_template("rankings.html")
+
+
+@app.route("/rankings/rankinglist.aspx")
+def rankings_list_redirect():
+    query = request.query_string.decode("utf-8")
+    target = "https://thepowerof10.info/rankings/rankinglist.aspx"
+    if query:
+        target = f"{target}?{query}"
+    return redirect(target, code=302)
+
+
+@app.route("/rankings/disabilityrankinglistrequest.aspx")
+def disability_rankings_redirect():
+    return redirect(
+        "https://thepowerof10.info/rankings/disabilityrankinglistrequest.aspx",
+        code=302,
     )
 
 
