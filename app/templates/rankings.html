@@ -81,7 +81,7 @@
                   <td align="center">{{ row.section_year or '' }}</td>
                   <td>
                     {% if row.source_kind == 'truepb_results' and row.venue %}
-                    <a href="https://truepb.net/results/">{{ row.venue or '' }}</a>
+                    <a href="https://truepb.net/results">{{ row.venue or '' }}</a>
                     {% elif row.venue_url %}
                     <a href="{{ row.venue_url }}">{{ row.venue or '' }}</a>
                     {% else %}
