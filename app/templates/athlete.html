@@ -21,13 +21,6 @@
               <tbody>
                 <tr class="athleteprofilesubheader">
                   <td><h2>{{ athlete.display_name }}</h2></td>
-                  <td style="text-align:right">
-                    <b>
-                      <a href="{{ 'https://truepb.net/results' if athlete.source_url and 'truepb.net/api/' in athlete.source_url else athlete.source_url }}">
-                        Original source
-                      </a>
-                    </b>
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -48,7 +41,6 @@
                           {% if athlete.club %}<tr><td><b>Club:</b></td><td>{{ athlete.club }}</td></tr>{% endif %}
                           {% if athlete.gender %}<tr><td><b>Gender:</b></td><td>{{ athlete.gender }}</td></tr>{% endif %}
                           {% if athlete.age_group %}<tr><td><b>Age Group:</b></td><td>{{ athlete.age_group }}</td></tr>{% endif %}
-                          {% if athlete.age %}<tr><td><b>Age:</b></td><td>{{ athlete.age }}</td></tr>{% endif %}
                         </tbody>
                       </table>
                     </td>
@@ -82,7 +74,7 @@
                 <tbody>
                   <tr>
                     <td>
-                      This live page is backed by PostgreSQL. Imported Power of 10 cache data and any later TruePB sections are rendered from the database, not from static files.
+                      Imported Power of 10 cache data and any later TruePB sections are rendered from the database, not from static files.
                     </td>
                   </tr>
                 </tbody>
@@ -212,38 +204,6 @@
             </div>
           </td>
 
-          <td width="220" valign="top">
-            <table width="100%" cellpadding="0" cellspacing="0" align="center">
-              <tbody>
-                <tr>
-                  <td>
-                    <table width="100%" cellspacing="0" cellpadding="2">
-                      <tbody>
-                        <tr class="athleteprofilesubheader">
-                          <td><b>Data Notes</b></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
-                      <tbody>
-                        <tr><td>Primary identity comes from the imported Po10 profile cache.</td></tr>
-                        <tr><td>TruePB rows can be appended as new sections without reimporting the Po10 dump.</td></tr>
-                        <tr><td><a href="/athletes">Back to athlete index</a></td></tr>
-                        <tr><td><a href="/">Back to front page</a></td></tr>
-                        <tr>
-                          <td>
-                            <a href="{{ 'https://truepb.net/results' if athlete.source_url and 'truepb.net/api/' in athlete.source_url else athlete.source_url }}">
-                              Open original profile
-                            </a>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
         </tr>
       </tbody>
     </table>
