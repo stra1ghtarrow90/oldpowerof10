@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}TruePB Po10{% endblock %}</title>
+  <link href="/thepowerof10.info/stylesheets/pot.css" type="text/css" rel="stylesheet">
+  <link rel="stylesheet" href="/thepowerof10.info/stylesheets/jquerydialog.css" type="text/css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <div align="center">
+    <table width="975px" border="0" cellpadding="0" cellspacing="0">
+      <tbody>
+        <tr>
+          <td>
+            <div id="banner_pnlPOT">
+              <div id="banner_pnlPOTBanner">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: Black;">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <div id="banner">
+                          <div id="banner-pot">
+                            <img src="/thepowerof10.info/images/pot/banner-pot.png" alt="Power of 10">
+                          </div>
+                          <div id="banner-uka">
+                            <a href="http://www.britishathletics.org.uk/">
+                              <img src="/thepowerof10.info/images/pot/britishathletics.png" alt="British Athletics">
+                            </a>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <table style="font-family: verdana, arial; background-color: black;" cellspacing="0" cellpadding="0" width="100%" border="0">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <ul id="potmenu">
+                          <li><a href="/" class="home">Home</a></li>
+                          <li><a href="/" class="about">About</a></li>
+                          <li><a href="/" class="rankings">Rankings</a></li>
+                          <li><a href="/" class="athletes">Athletes</a></li>
+                          <li><a href="/" class="coaches">Coaches</a></li>
+                          <li><a href="/" class="clubs">Clubs</a></li>
+                          <li><a href="/" class="highlights">Highlights</a></li>
+                          <li><a href="/" class="results">Results</a></li>
+                          <li><a href="/" class="award">Awards</a></li>
+                          <li><a href="/" class="help">Help</a></li>
+                          <li><a href="/" class="login">Login/Register</a></li>
+                        </ul>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {% block content %}{% endblock %}
+
+            <div id="footer_pnlPOT">
+              <table width="100%" style="background-color:Black;color:White;height:88px">
+                <tbody>
+                  <tr>
+                    <td align="center" valign="bottom" style="padding-bottom:8px">
+                      <a class="whitetextlink" href="http://www.uka.org.uk/">UK Athletics</a>&nbsp;|&nbsp;
+                      <a class="whitetextlink" href="http://www.englandathletics.org/">England Athletics</a>&nbsp;|&nbsp;
+                      <a class="whitetextlink" href="http://www.scottishathletics.org.uk/">Scottish Athletics</a>&nbsp;|&nbsp;
+                      <a class="whitetextlink" href="http://www.niathletics.org/opencontent/default.asp">Athletics Northern Ireland</a>&nbsp;|&nbsp;
+                      <a class="whitetextlink" href="http://www.welshathletics.org/">Welsh Athletics</a>
+                    </td>
+                    <td align="right" valign="bottom">
+                      <img src="/thepowerof10.info/logos/rb/runbritain_logo_200.png" alt="runbritain" style="height:56px;padding-right:8px;">
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

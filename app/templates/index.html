@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Athlete Index{% endblock %}
+
+{% block content %}
+<div id="pnlMainGeneral">
+  <table>
+    <tbody>
+      <tr>
+        <td><span id="cphBody_lblErrorMessage" style="color:Red;"></span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="cphBody_pnlMain">
+    <table width="100%" cellspacing="0" cellpadding="0">
+      <tbody>
+        <tr>
+          <td valign="top">
+            <table width="100%" cellspacing="0" cellpadding="2">
+              <tbody>
+                <tr class="athleteprofilesubheader">
+                  <td><h2>Athlete Index</h2></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table width="100%" cellspacing="0" cellpadding="2">
+              <tbody>
+                <tr class="athleteprofilesubheader">
+                  <td><b>Search</b></td>
+                </tr>
+                <tr>
+                  <td>
+                    <form method="get" action="/">
+                      <input
+                        type="text"
+                        name="q"
+                        value="{{ query }}"
+                        placeholder="Search by athlete name, club, or athlete id"
+                        style="width:100%;box-sizing:border-box;padding:6px;"
+                      >
+                    </form>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="2" rules="none" class="alternatingrowspanel">
+              <tbody>
+                <tr style="background-color:LightGrey">
+                  <td><b>Name</b></td>
+                  <td><b>Club</b></td>
+                  <td><b>Gender</b></td>
+                  <td><b>Age Group</b></td>
+                  <td align="right"><b>ID</b></td>
+                  <td align="right"><b>Performances</b></td>
+                  <td><b>Years</b></td>
+                </tr>
+                {% for athlete in athletes %}
+                <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }}">
+                  <td><a href="/athletes/{{ athlete.athlete_id }}">{{ athlete.display_name }}</a></td>
+                  <td>{{ athlete.club or '' }}</td>
+                  <td>{{ athlete.gender or '' }}</td>
+                  <td>{{ athlete.age_group or '' }}</td>
+                  <td align="right">{{ athlete.athlete_id }}</td>
+                  <td align="right">{{ athlete.performance_count }}</td>
+                  <td>
+                    {% if athlete.first_year and athlete.last_year %}
+                      {{ athlete.first_year }}-{{ athlete.last_year }}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr style="background-color:WhiteSmoke">
+                  <td colspan="7">No athletes matched your search.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </td>
+
+          <td width="220" valign="top">
+            <table width="100%" cellpadding="0" cellspacing="0" align="center">
+              <tbody>
+                <tr>
+                  <td>
+                    <table width="100%" cellspacing="0" cellpadding="2">
+                      <tbody>
+                        <tr class="athleteprofilesubheader">
+                          <td><b>Summary</b></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
+                      <tbody>
+                        <tr><td>Total athletes: {{ athlete_count }}</td></tr>
+                        <tr><td>Total performances: {{ performance_count }}</td></tr>
+                        <tr><td>Source: imported Po10 cache plus optional TruePB results</td></tr>
+                        <tr><td>New athlete creation is intentionally deferred for now.</td></tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

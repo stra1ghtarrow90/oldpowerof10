@@ -1,0 +1,175 @@
+/* POT Stylesheet */
+/* 10-05-25 Renamed pnlMain3 to pnlMainHome */
+/* 10-05-26 Sorted cursors on potRS and ResultsLookup classes */
+/* 10-05-30 Changed pnlMain to pnlMainGeneral */
+/* 10-06-02 Added pnlMainRankings */
+/* 10-06-18 Added alternatingrowspanel */
+/* 10-06-30 FAQ changes */
+/* 12-03-30 Comment out RB profile link */
+/* 12-11-13 Removed RB profile link. Added rankings styles */
+/* 18-05-09 Added potmenu help class */
+/* 19-03-08 Changed potmenu indent to -9000 */
+
+/* General */
+body,form {margin:0 !important;padding:0}
+body, p, ol, ul, li, table, input, select, textarea{font-family:arial, sans-serif;font-size: 12px;}
+h2 {color:#d61212;font-size:10pt; margin:0}
+h3 {color:#000;font-size:9pt; margin:0}
+ul{list-style: disc}
+
+/* Main panel layout between header & footer */
+#pnlMainGeneral{margin-top:10px; width:935px !important; width:975px;background:#DCDCDC url(../images/pot/bg3.png) repeat-x;padding-left:20px !important;padding-right:20px !important;padding-bottom:10px !important}
+#pnlMainHome{width:975px !important;background:#d0d0d0 url(../images/pot/bg2.png) repeat-x;} /* This used for home page only currently */
+#pnlMainRankings{margin-top:10px; width:975px !important; width:975px;background:#DCDCDC url(../images/pot/bg3.png) repeat-x;padding-bottom:10px !important}
+
+/* General Links */
+a:link,a:visited{color:#d61212; text-decoration:none}
+a:hover {color:#7D1414}
+
+a.athleteprofilesubheader:link, a.athleteprofilesubheader:visited{color:#000;font-family:arial}
+
+a.pottoolbar:link, a.pottoolbar:visited{color: black;}
+a.pottoolbar:hover{ text-decoration: none;color: #d61212;}
+a.pottoolbar{font-size: 10pt;font-weight: bold;}
+
+a.potRSSelected {font-weight: bold; color:#d61212; text-decoration: underline; cursor:default;}
+a.potRSNormal {font-weight: normal; color:White; text-decoration: none; cursor:default;}
+a.potRSHover {font-weight: normal; color:#d61212; text-decoration: none; cursor:pointer;}
+
+a.showLink, a.hideLink {text-decoration: none;color: #000 !important;padding-left: 15px;background: transparent url(../images/pot/down.png) no-repeat left;}
+a.hideLink {background: transparent url(../images/pot/up.png) no-repeat left; }
+
+a.whitetextlink:link, a.whitetextlink:visited{color: #fff;}
+a.whitetextlink:hover{text-decoration: none;color: #d61212;}
+
+a.adwhitetextlink:link, a.adwhitetextlink:visited{color: #fff;}
+a.adwhitetextlink:hover{text-decoration: none;color: #d61212;}
+
+a.blacktextlink:link, a.blacktextlink:visited{color: #000;}
+a.blacktextlink:hover{text-decoration: none;color: #d61212;}
+
+a.ResultsLookupDateLinkNormal {color:#000; cursor:normal;}
+a.ResultsLookupDateLinkHover {color: #d61212; text-decoration: none; cursor:pointer;}
+
+/* Top Banner */
+#banner{background:#000; height:135px; width:975px}
+#banner img {border:0}
+/* #banner-mccain {float:left;width:260px;margin-top:20px;margin-left:20px} */
+#banner-pot {float:left;width:390px; margin-top:43px;margin-left:310px}
+#banner-uka {float:left;width:175px; margin-top:45px;margin-left:100px}
+#banner-uka img {width:150px}
+
+/* Profile */
+div#lblPerformances {background:WhiteSmoke; padding:5px; width:725px}
+div#lblPerformances-top {width:735px; height:15px; background:url(../images/pot/perf-top.gif) no-repeat}
+div#lblPerformances-bottom {width:735px; height:15px; background:url(../images/pot/perf-bottom.gif) no-repeat}
+div#lblPerformances table{width:725px;background:WhiteSmoke;}
+
+div#performance-select{background:WhiteSmoke;width:723px !important; width:735px; padding: 0 6px 5px 6px;height:20px;}
+
+span#lblAthleteDetails{margin-left:-4px}
+
+tr.athleteprofilesubheader{width:400px !important;background:transparent; color:#000;font-family:arial}
+tr.bestperformancesheader, td.bestperformancesheader {font-family:arial}
+
+.pr-edit a {display: block;text-indent: -900%;position: absolute;outline: none;}
+.pr-edit .sprite {background:transparent url(../images/pot/edit-sprite.gif) no-repeat 0px -36px; height:18px; width:18px;}
+.pr-edit a.sprite:hover {background-position: 0px 0px;}
+.pr-edit {float:right;list-style: none;padding: 0;margin-right: 10px;width: 18px;height: 18px;position: relative; overflow:hidden}
+
+/* Menu */
+#potmenu {float:left;list-style: none;padding: 0;margin: 0;width: 975px;height: 30px;background: #000;position: relative; overflow:hidden}
+#potmenu span {display: none;position: absolute;}
+#potmenu a {display: block;text-indent: -9000%;position: absolute;outline: none;}
+#potmenu a:hover span {display: block;}
+#potmenu .home {width: 36px;height: 17px;background: url(../images/pot/pot-menu.png) 0px 0px no-repeat;left: 10px;top: 8px;}
+#potmenu a.home:hover {background-position: 0px -17px;}
+#potmenu .about {width: 38px;height: 17px;background: url(../images/pot/pot-menu.png) -36px 0px no-repeat;left: 66px;top: 8px;}
+#potmenu a.about:hover {background-position: -36px -17px;}
+#potmenu .rankings {width: 57px;height: 17px;background: url(../images/pot/pot-menu.png) -74px 0px no-repeat;left: 124px;top: 8px;}
+#potmenu a.rankings:hover {background-position: -74px -17px;}
+#potmenu .athletes {width: 53px;height: 17px;background: url(../images/pot/pot-menu.png) -131px 0px no-repeat;left: 200px;top: 8px;}
+#potmenu a.athletes:hover {background-position: -131px -17px;}
+#potmenu .coaches {width: 50px;height: 17px;background: url(../images/pot/pot-menu.png) -511px 0px no-repeat;left: 270px;top: 8px;}
+#potmenu a.coaches:hover {background-position: -511px -17px;}
+#potmenu .clubs {width: 33px;height: 17px;background: url(../images/pot/pot-menu.png) -184px 0px no-repeat;left: 340px;top: 8px;}
+#potmenu a.clubs:hover {background-position: -184px -17px;}
+#potmenu .highlights {width: 64px;height: 17px;background: url(../images/pot/pot-menu.png) -217px 0px no-repeat;left: 393px;top: 8px;}
+#potmenu a.highlights:hover {background-position: -217px -17px;}
+#potmenu .results {width: 44px;height: 17px;background: url(../images/pot/pot-menu.png) -281px 0px no-repeat;left: 477px;top: 8px;}
+#potmenu a.results:hover {background-position: -281px -17px;}
+#potmenu .award {width: 46px;height: 17px;background: url(../images/pot/pot-menu.png) -325px 0px no-repeat;left: 541px;top: 8px;}
+#potmenu a.award:hover {background-position: -325px -17px;}
+#potmenu .contact {width: 48px;height: 17px;background: url(../images/pot/pot-menu.png) -371px 0px no-repeat;left: 607px;top: 8px;}
+#potmenu a.contact:hover {background-position: -371px -17px;}
+#potmenu .login {width: 92px;height: 17px;background: url(../images/pot/pot-menu.png) -419px 0px no-repeat;left: 650px;top: 8px;}
+#potmenu a.login:hover {background-position: -419px -17px;}
+#potmenu .ops {width: 23px;height: 17px;background: url(../images/pot/pot-menu.png) -561px 0px no-repeat;left: 762px;top: 8px;}
+#potmenu a.ops:hover {background-position: -561px -17px;}
+#potmenu .edit {width: 24px;height: 17px;background: url(../images/pot/pot-menu.png) -584px 0px no-repeat;left: 805px;top: 8px;}
+#potmenu a.edit:hover {background-position: -584px -17px;}
+#potmenu .faq {width: 23px;height: 17px;background: url(../images/pot/pot-menu.png) -608px 0px no-repeat;left: 607px;top: 8px;}
+#potmenu a.faq:hover {background-position: -608px -17px;}
+#potmenu .help {width: 28px;height: 17px;background: url(../images/pot/pot-menu.png) -632px 0px no-repeat;left: 607px;top: 8px;}
+#potmenu a.help:hover {background-position: -632px -17px;}
+
+/* Rankings */
+
+#divPOTRankingsSelector {cursor:default;background:#000}
+td.cursor-pointer {cursor:pointer}
+
+.coach-tooltip {border:solid 1px #666666; padding:1px;position:absolute; z-index:100;visibility:hidden; color:#333333; top:20px;left:90px; padding:2px;background-color:#fff;}
+img.coach-icon {border:0}
+
+/* FAQ */
+div.answer{width:915px !important; width:935px;background:WhiteSmoke;margin:10px 0;padding:10px;-moz-border-radius: 10px;-webkit-border-radius: 10px;-khtml-border-radius:10px}
+div.answer ol li {margin:8px 0;line-height:140%}
+div.answer ul li {margin:20px 0;line-height:140%}
+div.answer ol li ul li{margin:3px 0;line-height:140%}
+div.answer ul li ul li{margin:3px 0;line-height:140%}
+div.answer ul li ul.large-margin li{margin:15px 0;line-height:140%}
+span.pot-red{color:#d61212}
+.faq-img {float:right; margin-left:5px;border:1px #000 solid }
+
+/* About */
+a.about{font-size: 8pt;font-weight: bold;}
+a.about:link, a.about:visited{color: red;}
+a.about:hover{text-decoration: none;color: white;}
+
+a.about2{font-size: 8pt;font-weight: bold;}
+a.about2:link, a.about2:visited{color: white;}
+a.about2:hover{text-decoration: none;color: black;}
+
+table.about{background-image: url(../images/pot/about/aboutbg.jpg);background-repeat: repeat;}
+table.about p {font-size: 8pt;line-height: 1.3em;}
+table.about ul {font-size: 8pt;line-height: 1.6em;}
+table.about tr td.first,.third {border-style: solid;border-width: 1px;border-color: white;}
+table.about tr td.first {background-image: url(../images/pot/about/redtablebg.jpg);padding: 15px;color: white;}
+table.about tr td.second {padding: 5px;color: black;}
+table.about tr td.third {background-color: #0e0e0e;padding: 15px;color: white;}
+
+table.alternatingrowspanel {border-collapse:collapse; border-style:solid; border-width:0px; border-left-color:transparent; border-top-color:transparent; border-bottom-color:transparent; border-right-color:transparent;}
+
+/* McCain Awards */
+table.mccain {background:#c8c4b9 url(https://thepowerof10.info/images/pot/mccainawards/mccainbg2.jpg) repeat-x 0 0;}
+
+div.mccain {background:#c8c4b9 url(https://thepowerof10.info/images/pot/mccainawards/mccainbg2.jpg) repeat-x 0 0;}
+
+/* Contact */
+table.contact {background-image: url(../images/pot/contact/contactbg.png);}
+table.contact p.important {color: red;}
+table.contact p.title {font-size: 11pt;}
+table.contact tr td.accuracy,.red {border-style: solid;border-width: 1px;border-color: white;}
+table.contact tr td.accuracy {background-color: #0e0e0e;padding: 15px;color: white;}
+
+a.contact{font-weight: bold;}
+a.contact:link, a.contact:visited{color: black;}
+a.contact:hover{text-decoration: none;color: red;}
+
+/* ranking lists */
+.rlr{background-color:#F5F5F5;}
+.rlra{background-color:#DCDCDC;}
+.rlpb{color:#7D1414;font-size:8pt;font-weight:bold;}
+
+/* Home */
+#homeplinks img {margin:15px 0;display:block}
