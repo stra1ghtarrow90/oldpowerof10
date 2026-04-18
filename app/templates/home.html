@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Power of 10{% endblock %}
+
+{% block extra_head %}
+<style>
+  .frontpage-search-card,
+  .frontpage-highlights-card,
+  .frontpage-copy-card,
+  .frontpage-results-card,
+  .frontpage-summary-card {
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 8pt;
+  }
+
+  .frontpage-search-card,
+  .frontpage-highlights-card {
+    color: #fff;
+    background: #000;
+    padding: 12px;
+  }
+
+  .frontpage-search-card table,
+  .frontpage-highlights-card table,
+  .frontpage-results-card table,
+  .frontpage-summary-card table {
+    width: 100%;
+  }
+
+  .frontpage-search-label {
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  .frontpage-search-input {
+    width: 125px;
+  }
+
+  .frontpage-search-submit {
+    background: transparent;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    padding: 0;
+  }
+
+  .frontpage-search-submit:hover {
+    color: red;
+    text-decoration: none;
+  }
+
+  .frontpage-copy-card {
+    background: #000;
+    color: #fff;
+    margin-bottom: 6px;
+    padding: 7px 10px;
+    font-size: 90%;
+  }
+
+  .frontpage-results-card,
+  .frontpage-summary-card {
+    margin-top: 12px;
+  }
+
+  .frontpage-section-title {
+    background: #000;
+    color: #fff;
+    padding: 6px 10px;
+    font-weight: bold;
+  }
+
+  .frontpage-empty {
+    padding: 12px;
+  }
+
+  .frontpage-link {
+    color: #fff;
+    font-weight: bold;
+  }
+
+  .frontpage-link:hover {
+    color: red;
+    text-decoration: none;
+  }
+
+  .frontpage-browse-link {
+    font-weight: bold;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pnlMainHome">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0">
+    <tbody>
+      <tr>
+        <td valign="top">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0">
+            <tbody>
+              <tr>
+                <td colspan="2">
+                  <img src="{{ url_for('frontpage_assets', asset_path='rainbow.png') }}" alt="Power of 10" />
+                </td>
+              </tr>
+              <tr>
+                <td valign="top">
+                  <img src="{{ url_for('frontpage_assets', asset_path='tail.png') }}" alt="Power of 10" />
+                </td>
+                <td>
+                  <table width="780px" border="0" cellpadding="0" cellspacing="0" style="background-color: transparent;">
+                    <tbody>
+                      <tr>
+                        <td width="240px" valign="top">
+                          <div class="frontpage-search-card">
+                            <form method="get" action="/" id="home-athlete-search">
+                              <table border="0" cellspacing="0" cellpadding="0">
+                                <tbody>
+                                  <tr>
+                                    <td colspan="2"><b>ATHLETE SEARCH</b></td>
+                                  </tr>
+                                  <tr><td colspan="2" style="height: 8px;"></td></tr>
+                                  <tr>
+                                    <td class="frontpage-search-label">Surname</td>
+                                    <td align="right">
+                                      <input
+                                        class="frontpage-search-input"
+                                        type="text"
+                                        name="surname"
+                                        maxlength="50"
+                                        value="{{ surname }}"
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td class="frontpage-search-label">First Name</td>
+                                    <td align="right">
+                                      <input
+                                        class="frontpage-search-input"
+                                        type="text"
+                                        name="first_name"
+                                        maxlength="50"
+                                        value="{{ first_name }}"
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td class="frontpage-search-label">Club</td>
+                                    <td align="right">
+                                      <input
+                                        class="frontpage-search-input"
+                                        type="text"
+                                        name="club"
+                                        maxlength="50"
+                                        value="{{ club }}"
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td colspan="2" align="right" style="padding-top: 6px;">
+                                      <button type="submit" class="frontpage-search-submit">FIND</button>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </form>
+                          </div>
+                        </td>
+                        <td width="100%" align="center" valign="top" rowspan="2">
+                          <img
+                            src="{{ url_for('frontpage_assets', asset_path='pot-raising-standard-new.png') }}"
+                            alt="Raising the Standard"
+                          />
+                        </td>
+                        <td width="220px" valign="top" rowspan="2">
+                          <div class="frontpage-copy-card">
+                            The sport of Athletics has a mission to strengthen the depth for every event, in every age group across every nation and region of the UK.
+                            <br><br>
+                            This rebuilt site keeps the Power of 10 athlete archive live in PostgreSQL and lets you extend athlete pages with new TruePB results over time.
+                            <br><br>
+                            Start with the athlete search or browse the full index.
+                          </div>
+                          <div style="height: 60px; width: 220px;">
+                            <img
+                              src="{{ url_for('frontpage_assets', asset_path='rb.png') }}"
+                              alt="runbritain rankings"
+                              style="border:0"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td valign="bottom">
+                          <div class="frontpage-highlights-card">
+                            <table border="0" cellspacing="0" cellpadding="0">
+                              <tbody>
+                                <tr>
+                                  <td><b>HIGHLIGHTS</b></td>
+                                </tr>
+                                <tr><td style="height: 8px;"></td></tr>
+                                <tr>
+                                  <td>
+                                    <div>Total athletes: {{ athlete_count }}</div>
+                                    <div>Total performances: {{ performance_count }}</div>
+                                    <div style="margin-top: 8px;">
+                                      <a href="/athletes" class="frontpage-link">Browse athlete index</a>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colspan="3">&nbsp;</td>
+                      </tr>
+                      <tr>
+                        <td colspan="3">
+                          <div class="frontpage-results-card">
+                            <div class="frontpage-section-title">
+                              {% if has_search %}
+                                ATHLETE SEARCH RESULTS
+                              {% else %}
+                                ATHLETE DIRECTORY
+                              {% endif %}
+                            </div>
+                            {% if has_search %}
+                              <table cellspacing="0" cellpadding="2" rules="none" class="alternatingrowspanel">
+                                <tbody>
+                                  <tr style="background-color:LightGrey">
+                                    <td><b>Name</b></td>
+                                    <td><b>Club</b></td>
+                                    <td><b>Gender</b></td>
+                                    <td><b>Age Group</b></td>
+                                    <td align="right"><b>ID</b></td>
+                                    <td align="right"><b>Performances</b></td>
+                                    <td><b>Years</b></td>
+                                  </tr>
+                                  {% for athlete in athletes %}
+                                  <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }}">
+                                    <td><a href="/athletes/{{ athlete.athlete_id }}">{{ athlete.display_name }}</a></td>
+                                    <td>{{ athlete.club or '' }}</td>
+                                    <td>{{ athlete.gender or '' }}</td>
+                                    <td>{{ athlete.age_group or '' }}</td>
+                                    <td align="right">{{ athlete.athlete_id }}</td>
+                                    <td align="right">{{ athlete.performance_count }}</td>
+                                    <td>
+                                      {% if athlete.first_year and athlete.last_year %}
+                                        {{ athlete.first_year }}-{{ athlete.last_year }}
+                                      {% endif %}
+                                    </td>
+                                  </tr>
+                                  {% else %}
+                                  <tr style="background-color:WhiteSmoke">
+                                    <td colspan="7" class="frontpage-empty">No athletes matched your search.</td>
+                                  </tr>
+                                  {% endfor %}
+                                </tbody>
+                              </table>
+                            {% else %}
+                              <div class="frontpage-empty alternatingrowspanel">
+                                Use the home-page search above to find athletes by surname, first name, and club.
+                                <br><br>
+                                You can also <a href="/athletes" class="frontpage-browse-link">browse the full athlete index</a>.
+                              </div>
+                            {% endif %}
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

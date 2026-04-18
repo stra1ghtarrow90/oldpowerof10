@@ -5,6 +5,7 @@
   <title>{% block title %}TruePB Po10{% endblock %}</title>
   <link href="/thepowerof10.info/stylesheets/pot.css" type="text/css" rel="stylesheet">
   <link rel="stylesheet" href="/thepowerof10.info/stylesheets/jquerydialog.css" type="text/css">
+  {% block extra_head %}{% endblock %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
@@ -41,7 +42,7 @@
                           <li><a href="/" class="home">Home</a></li>
                           <li><a href="/" class="about">About</a></li>
                           <li><a href="/" class="rankings">Rankings</a></li>
-                          <li><a href="/" class="athletes">Athletes</a></li>
+                          <li><a href="/athletes" class="athletes">Athletes</a></li>
                           <li><a href="/" class="coaches">Coaches</a></li>
                           <li><a href="/" class="clubs">Clubs</a></li>
                           <li><a href="/" class="highlights">Highlights</a></li>

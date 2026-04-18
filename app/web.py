@@ -10,6 +10,7 @@ from .db import get_conn
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSET_ROOT = ROOT / "thepowerof10.info"
+FRONTPAGE_ASSET_ROOT = ROOT / "frontpage" / "Power of 10_files"
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 
@@ -29,12 +30,35 @@ def legacy_assets(asset_path: str):
     return send_from_directory(ASSET_ROOT, asset_path)
 
 
-@app.route("/")
-def athlete_index():
-    query = (request.args.get("q") or "").strip()
+@app.route("/frontpage-assets/<path:asset_path>")
+def frontpage_assets(asset_path: str):
+    return send_from_directory(FRONTPAGE_ASSET_ROOT, asset_path)
+
+
+def summary_counts(conn):
+    return conn.execute(
+        """
+        SELECT
+            COUNT(*) AS athlete_count,
+            COALESCE(SUM(performance_count), 0) AS performance_count
+        FROM athletes
+        """
+    ).fetchone()
+
+
+def load_athlete_rows(
+    conn,
+    *,
+    q: str = "",
+    surname: str = "",
+    first_name: str = "",
+    club: str = "",
+):
     sql = """
         SELECT
             athlete_id,
+            profile_name,
+            runner_name,
             display_name,
             club,
             gender,
@@ -44,28 +68,88 @@ def athlete_index():
             last_year
         FROM athletes
     """
-    params = []
-    if query:
-        sql += """
-        WHERE
-            display_name ILIKE %s OR
-            COALESCE(club, '') ILIKE %s OR
-            CAST(athlete_id AS TEXT) ILIKE %s
-        """
-        like = f"%{query}%"
+    params: list[object] = []
+    conditions: list[str] = []
+
+    def add_name_filter(value: str) -> None:
+        like = f"%{value}%"
+        conditions.append(
+            """
+            (
+                COALESCE(display_name, '') ILIKE %s OR
+                COALESCE(profile_name, '') ILIKE %s OR
+                COALESCE(runner_name, '') ILIKE %s
+            )
+            """
+        )
         params.extend([like, like, like])
+
+    if q:
+        like = f"%{q}%"
+        conditions.append(
+            """
+            (
+                COALESCE(display_name, '') ILIKE %s OR
+                COALESCE(profile_name, '') ILIKE %s OR
+                COALESCE(runner_name, '') ILIKE %s OR
+                COALESCE(club, '') ILIKE %s OR
+                CAST(athlete_id AS TEXT) ILIKE %s
+            )
+            """
+        )
+        params.extend([like, like, like, like, like])
+
+    if surname:
+        add_name_filter(surname)
+
+    if first_name:
+        add_name_filter(first_name)
+
+    if club:
+        conditions.append("COALESCE(club, '') ILIKE %s")
+        params.append(f"%{club}%")
+
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+
     sql += " ORDER BY LOWER(display_name), athlete_id"
+    return conn.execute(sql, params).fetchall()
+
+
+@app.route("/")
+def home():
+    surname = (request.args.get("surname") or "").strip()
+    first_name = (request.args.get("first_name") or "").strip()
+    club = (request.args.get("club") or "").strip()
+    has_search = any([surname, first_name, club])
 
     with get_conn() as conn:
-        athletes = conn.execute(sql, params).fetchall()
-        summary = conn.execute(
-            """
-            SELECT
-                COUNT(*) AS athlete_count,
-                COALESCE(SUM(performance_count), 0) AS performance_count
-            FROM athletes
-            """
-        ).fetchone()
+        summary = summary_counts(conn)
+        athletes = load_athlete_rows(
+            conn,
+            surname=surname,
+            first_name=first_name,
+            club=club,
+        ) if has_search else []
+
+    return render_template(
+        "home.html",
+        athletes=athletes,
+        surname=surname,
+        first_name=first_name,
+        club=club,
+        has_search=has_search,
+        athlete_count=summary["athlete_count"],
+        performance_count=summary["performance_count"],
+    )
+
+
+@app.route("/athletes")
+def athlete_index():
+    query = (request.args.get("q") or "").strip()
+    with get_conn() as conn:
+        athletes = load_athlete_rows(conn, q=query)
+        summary = summary_counts(conn)
 
     return render_template(
         "index.html",
