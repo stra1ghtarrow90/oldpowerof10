@@ -276,9 +276,12 @@ def load_results_years(conn) -> list[int]:
 def load_results_events(conn) -> list[str]:
     rows = conn.execute(
         """
-        SELECT DISTINCT event
-        FROM athlete_performances
-        WHERE COALESCE(BTRIM(event), '') <> ''
+        SELECT event
+        FROM (
+            SELECT DISTINCT event
+            FROM athlete_performances
+            WHERE COALESCE(BTRIM(event), '') <> ''
+        ) event_options
         ORDER BY LOWER(event)
         """
     ).fetchall()
