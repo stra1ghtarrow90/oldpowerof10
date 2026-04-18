@@ -87,10 +87,37 @@ function fnSetResultsDates(dateFrom, dateTo, yearValue) {
       <tr>
         <td>
           <b>{% if results_has_filters %}Matching Results{% else %}Recent Results{% endif %}</b>
+          {% if results_total_meetings %}
+          <br>
+          Showing
+          {{ ((results_page - 1) * results_page_size) + 1 }}
+          -
+          {{ [results_page * results_page_size, results_total_meetings]|min }}
+          of {{ results_total_meetings }} grouped meetings
+          {% endif %}
         </td>
       </tr>
     </tbody>
   </table>
+
+  {% if results_total_pages > 1 %}
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          {% if results_page > 1 %}
+          <a href="{{ url_for('results_lookup', event=results_selected_event or None, meeting=results_meeting or None, venue=results_venue or None, date_from=results_date_from or None, date_to=results_date_to or None, year=results_selected_year or None, page=results_page - 1) }}">Newer</a>
+          {% endif %}
+          {% if results_page > 1 and results_page < results_total_pages %} | {% endif %}
+          {% if results_page < results_total_pages %}
+          <a href="{{ url_for('results_lookup', event=results_selected_event or None, meeting=results_meeting or None, venue=results_venue or None, date_from=results_date_from or None, date_to=results_date_to or None, year=results_selected_year or None, page=results_page + 1) }}">Older</a>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <br>
+  {% endif %}
 
   <table cellspacing="0" cellpadding="2" rules="none" style="width:100%;border-collapse:collapse;">
     <tbody>
@@ -126,5 +153,24 @@ function fnSetResultsDates(dateFrom, dateTo, yearValue) {
       {% endfor %}
     </tbody>
   </table>
+
+  {% if results_total_pages > 1 %}
+  <br>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          {% if results_page > 1 %}
+          <a href="{{ url_for('results_lookup', event=results_selected_event or None, meeting=results_meeting or None, venue=results_venue or None, date_from=results_date_from or None, date_to=results_date_to or None, year=results_selected_year or None, page=results_page - 1) }}">Newer</a>
+          {% endif %}
+          {% if results_page > 1 and results_page < results_total_pages %} | {% endif %}
+          {% if results_page < results_total_pages %}
+          <a href="{{ url_for('results_lookup', event=results_selected_event or None, meeting=results_meeting or None, venue=results_venue or None, date_from=results_date_from or None, date_to=results_date_to or None, year=results_selected_year or None, page=results_page + 1) }}">Older</a>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
 </div>
 {% endblock %}

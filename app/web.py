@@ -29,7 +29,7 @@ TOOLBAR_MAX_YEAR = 2026
 TOOLBAR_AREA_IDS = {"0", "61", "62", "63", "64", "65", "66", "67", "68", "69", "91", "92", "93", "94"}
 TOOLBAR_SEXES = {"M", "W", "X"}
 TOOLBAR_AGE_GROUPS = {"ALL", "U20", "U17", "U15", "U13", "DIS"}
-RESULTS_MAX_MEETINGS = 250
+RESULTS_PAGE_SIZE = 250
 RESULTS_DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d %b %Y", "%d %b %y", "%d-%b-%Y", "%d-%b-%y")
 RESULTS_DATE_SQL_TEMPLATE = """
 COALESCE(
@@ -309,7 +309,8 @@ def load_result_meetings(
     date_from: date | None = None,
     date_to: date | None = None,
     year: int | None = None,
-    limit: int = RESULTS_MAX_MEETINGS,
+    limit: int = RESULTS_PAGE_SIZE,
+    offset: int = 0,
 ):
     effective_date = effective_result_date_sql("p", "s")
     meeting_key_expr = "LOWER(BTRIM(COALESCE(p.meeting, '')))"
@@ -372,9 +373,76 @@ def load_result_meetings(
     sql += """
         ORDER BY meeting_date DESC, meeting_key, venue_key
         LIMIT %s
+        OFFSET %s
     """
     params.append(limit)
+    params.append(offset)
     return conn.execute(sql, params).fetchall()
+
+
+def count_result_meetings(
+    conn,
+    *,
+    event: str = "",
+    meeting: str = "",
+    venue: str = "",
+    date_from: date | None = None,
+    date_to: date | None = None,
+    year: int | None = None,
+) -> int:
+    effective_date = effective_result_date_sql("p", "s")
+    meeting_key_expr = "LOWER(BTRIM(COALESCE(p.meeting, '')))"
+    venue_key_expr = "LOWER(BTRIM(COALESCE(p.venue, '')))"
+    sql = f"""
+        SELECT COUNT(*) AS total
+        FROM (
+            SELECT
+                {meeting_key_expr},
+                {venue_key_expr},
+                {effective_date}
+            FROM athlete_performances p
+            JOIN athlete_performance_sections s ON s.id = p.section_id
+            WHERE
+                (
+                    COALESCE(BTRIM(p.meeting), '') <> '' OR
+                    COALESCE(BTRIM(p.venue), '') <> ''
+                ) AND
+                {effective_date} IS NOT NULL
+    """
+    params: list[object] = []
+
+    if event:
+        sql += " AND p.event = %s"
+        params.append(event)
+
+    meeting_pattern = results_search_pattern(meeting)
+    if meeting_pattern:
+        sql += " AND COALESCE(p.meeting, '') ILIKE %s"
+        params.append(meeting_pattern)
+
+    venue_pattern = results_search_pattern(venue)
+    if venue_pattern:
+        sql += " AND COALESCE(p.venue, '') ILIKE %s"
+        params.append(venue_pattern)
+
+    if date_from is not None:
+        sql += f" AND {effective_date} >= %s"
+        params.append(date_from)
+
+    if date_to is not None:
+        sql += f" AND {effective_date} <= %s"
+        params.append(date_to)
+
+    if year is not None:
+        sql += f" AND EXTRACT(YEAR FROM {effective_date}) = %s"
+        params.append(year)
+
+    sql += """
+            GROUP BY 1, 2, 3
+        ) grouped_meetings
+    """
+    row = conn.execute(sql, params).fetchone()
+    return int(row["total"] or 0)
 
 
 def load_meeting_rows(
@@ -884,6 +952,7 @@ def results_lookup():
     date_from_text = (request.args.get("date_from") or "").strip()
     date_to_text = (request.args.get("date_to") or "").strip()
     selected_year = request.args.get("year", type=int) or None
+    page = max(request.args.get("page", type=int) or 1, 1)
     has_filters = any([selected_event, meeting, venue, date_from_text, date_to_text, selected_year])
 
     date_from = parse_results_date(date_from_text)
@@ -892,6 +961,17 @@ def results_lookup():
     with get_conn() as conn:
         event_options = load_results_events(conn)
         year_options = load_results_years(conn)
+        total_meetings = count_result_meetings(
+            conn,
+            event=selected_event,
+            meeting=meeting,
+            venue=venue,
+            date_from=date_from,
+            date_to=date_to,
+            year=selected_year,
+        )
+        total_pages = max((total_meetings + RESULTS_PAGE_SIZE - 1) // RESULTS_PAGE_SIZE, 1)
+        page = min(page, total_pages)
         meetings = load_result_meetings(
             conn,
             event=selected_event,
@@ -900,6 +980,8 @@ def results_lookup():
             date_from=date_from,
             date_to=date_to,
             year=selected_year,
+            limit=RESULTS_PAGE_SIZE,
+            offset=(page - 1) * RESULTS_PAGE_SIZE,
         )
 
     return render_template(
@@ -916,6 +998,10 @@ def results_lookup():
         results_has_filters=has_filters,
         results_date_label=results_date_label,
         results_recent_years=year_options[:4],
+        results_page=page,
+        results_page_size=RESULTS_PAGE_SIZE,
+        results_total_meetings=total_meetings,
+        results_total_pages=total_pages,
     )
 
 
