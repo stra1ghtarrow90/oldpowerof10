@@ -314,8 +314,10 @@ def load_result_meetings(
             COUNT(DISTINCT NULLIF(BTRIM(COALESCE(p.event, '')), '')) AS event_count
         FROM athlete_performances p
         WHERE
-            COALESCE(BTRIM(p.meeting), '') <> '' AND
-            COALESCE(BTRIM(p.venue), '') <> '' AND
+            (
+                COALESCE(BTRIM(p.meeting), '') <> '' OR
+                COALESCE(BTRIM(p.venue), '') <> ''
+            ) AND
             {effective_date} IS NOT NULL
     """
     params: list[object] = []
@@ -396,6 +398,10 @@ def load_meeting_rows(
         WHERE
             LOWER(BTRIM(COALESCE(p.meeting, ''))) = %s AND
             LOWER(BTRIM(COALESCE(p.venue, ''))) = %s AND
+            (
+                COALESCE(BTRIM(p.meeting), '') <> '' OR
+                COALESCE(BTRIM(p.venue), '') <> ''
+            ) AND
             {effective_date} = %s
     """
     params: list[object] = [meeting_key, venue_key, meeting_date]
@@ -525,9 +531,11 @@ def build_meeting_view(conn, *, meeting_key: str, venue_key: str, meeting_date: 
         )
 
     first_row = rows[0]
+    meeting_name = (first_row["meeting"] or "").strip()
+    venue_name = (first_row["venue"] or "").strip()
     return {
-        "meeting_name": first_row["meeting"] or "",
-        "venue_name": first_row["venue"] or "",
+        "meeting_name": meeting_name or venue_name,
+        "venue_name": venue_name if meeting_name else "",
         "meeting_date": meeting_date,
         "date_label": results_detail_date_label(meeting_date),
         "event_groups": event_groups,
@@ -905,7 +913,7 @@ def results_detail():
     meeting_date = parse_results_date(request.args.get("date"))
     selected_event = (request.args.get("event") or "").strip()
 
-    if not meeting_key or not venue_key or meeting_date is None:
+    if meeting_date is None or (not meeting_key and not venue_key):
         return redirect("/results", code=302)
 
     with get_conn() as conn:

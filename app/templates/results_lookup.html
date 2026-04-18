@@ -105,8 +105,8 @@ function fnSetResultsDates(dateFrom, dateTo, yearValue) {
       {% for row in results_meetings %}
       <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }};">
         <td>{{ results_date_label(row.meeting_date) }}</td>
-        <td>{{ row.meeting_display or '' }}</td>
-        <td>{{ row.venue_display or '' }}</td>
+        <td>{{ row.meeting_display or row.venue_display or 'Unnamed meeting' }}</td>
+        <td>{{ row.venue_display if row.meeting_display else '' }}</td>
         <td align="center">{{ row.event_count }}</td>
         <td align="center">{{ row.athlete_count }}</td>
         <td align="center">
