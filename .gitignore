@@ -5,4 +5,5 @@ __pycache__/
 .DS_Store
 .venv/
 imports/legacy/*.sql
+imports/wayback_profiles/
 postgres-data/

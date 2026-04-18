@@ -88,6 +88,37 @@ Import it like this:
 docker compose run --rm web python -m app.import_truepb_results --json /imports/examples/truepb-results.sample.json
 ```
 
+## Export Wayback Athlete Profiles
+
+To build a CSV of the latest archived Power of 10 athlete profile snapshot for each athlete:
+
+```bash
+python3 -m app.wayback_profiles
+```
+
+That writes:
+
+- `imports/wayback_profiles/latest_profile_captures.csv`
+- `imports/wayback_profiles/latest_profile_captures.state.json`
+
+The state file lets the CDX scan resume if it gets interrupted.
+
+To also download the latest archived HTML for each athlete profile:
+
+```bash
+python3 -m app.wayback_profiles --download
+```
+
+That writes one file per athlete to:
+
+- `imports/wayback_profiles/html/<athleteid>.html`
+
+If the manifest already exists and you only want the HTML download pass:
+
+```bash
+python3 -m app.wayback_profiles --download-only
+```
+
 ## Notes
 
 - The importer trusts `powerof10_profiles` for athlete naming and uses `runners` only as supporting metadata.
