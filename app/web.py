@@ -163,8 +163,19 @@ def toolbar_year(year: int | None) -> int:
     return max(TOOLBAR_MIN_YEAR, min(TOOLBAR_MAX_YEAR, year))
 
 
-def effective_result_date_sql(alias: str = "p") -> str:
-    return RESULTS_DATE_SQL_TEMPLATE.format(alias=alias)
+def effective_result_date_sql(alias: str = "p", section_alias: str | None = None) -> str:
+    base = RESULTS_DATE_SQL_TEMPLATE.format(alias=alias).strip()
+    if section_alias is None:
+        return base
+    return f"""
+COALESCE(
+    {base},
+    CASE
+        WHEN {section_alias}.year IS NOT NULL THEN MAKE_DATE({section_alias}.year, 1, 1)
+        ELSE NULL
+    END
+)
+""".strip()
 
 
 def parse_results_date(value: str | None) -> date | None:
@@ -261,11 +272,12 @@ def is_better_mark(candidate: dict, existing: dict | None, direction: str) -> bo
 
 
 def load_results_years(conn) -> list[int]:
-    effective_date = effective_result_date_sql("p")
+    effective_date = effective_result_date_sql("p", "s")
     rows = conn.execute(
         f"""
         SELECT DISTINCT EXTRACT(YEAR FROM {effective_date})::int AS year
         FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
         WHERE {effective_date} IS NOT NULL
         ORDER BY year DESC
         """
@@ -299,7 +311,7 @@ def load_result_meetings(
     year: int | None = None,
     limit: int = RESULTS_MAX_MEETINGS,
 ):
-    effective_date = effective_result_date_sql("p")
+    effective_date = effective_result_date_sql("p", "s")
     meeting_key_expr = "LOWER(BTRIM(COALESCE(p.meeting, '')))"
     venue_key_expr = "LOWER(BTRIM(COALESCE(p.venue, '')))"
     sql = f"""
@@ -313,6 +325,7 @@ def load_result_meetings(
             COUNT(DISTINCT p.athlete_id) AS athlete_count,
             COUNT(DISTINCT NULLIF(BTRIM(COALESCE(p.event, '')), '')) AS event_count
         FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
         WHERE
             (
                 COALESCE(BTRIM(p.meeting), '') <> '' OR
@@ -372,7 +385,7 @@ def load_meeting_rows(
     meeting_date: date,
     selected_event: str = "",
 ):
-    effective_date = effective_result_date_sql("p")
+    effective_date = effective_result_date_sql("p", "s")
     sql = f"""
         SELECT
             p.id,
