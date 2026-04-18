@@ -297,10 +297,12 @@ def load_result_meetings(
     limit: int = RESULTS_MAX_MEETINGS,
 ):
     effective_date = effective_result_date_sql("p")
+    meeting_key_expr = "LOWER(BTRIM(COALESCE(p.meeting, '')))"
+    venue_key_expr = "LOWER(BTRIM(COALESCE(p.venue, '')))"
     sql = f"""
         SELECT
-            LOWER(BTRIM(COALESCE(p.meeting, ''))) AS meeting_key,
-            LOWER(BTRIM(COALESCE(p.venue, ''))) AS venue_key,
+            {meeting_key_expr} AS meeting_key,
+            {venue_key_expr} AS venue_key,
             {effective_date} AS meeting_date,
             MIN(NULLIF(BTRIM(COALESCE(p.meeting, '')), '')) AS meeting_display,
             MIN(NULLIF(BTRIM(COALESCE(p.venue, '')), '')) AS venue_display,
@@ -342,7 +344,14 @@ def load_result_meetings(
         params.append(year)
 
     sql += """
-        GROUP BY meeting_key, venue_key, meeting_date
+        GROUP BY
+    """
+    sql += f"""
+            {meeting_key_expr},
+            {venue_key_expr},
+            {effective_date}
+    """
+    sql += """
         ORDER BY meeting_date DESC, meeting_key, venue_key
         LIMIT %s
     """
