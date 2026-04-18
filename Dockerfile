@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY schema.sql .
 COPY favicon.ico .
+COPY frontpage ./frontpage
 COPY thepowerof10.info ./thepowerof10.info
 
 EXPOSE 8000
