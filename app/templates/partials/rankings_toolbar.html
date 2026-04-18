@@ -6,6 +6,7 @@
 
 function fnSetSelectedYear(element){
     // unselect everything
+    document.getElementById('year2026').className = 'potRSNormal';
     document.getElementById('year2006').className = 'potRSNormal';
     document.getElementById('year2007').className = 'potRSNormal';
     document.getElementById('year2008').className = 'potRSNormal';
@@ -107,10 +108,18 @@ function fnSetAllSelections(thisYear, thisAreaID, thisSex, thisAgeGroup, thisEve
      var eAgeGroup = document.getElementById('ag' + thisAgeGroup);
      var eEventCode = document.getElementById('e' + thisAgeGroup + thisSex + thisEventCode);
      
-     fnSetSelectedYear(eYear);
-     fnSetSelectedArea(eAreaID);
-     fnSetSelectedSex(eSex);
-     fnSetSelectedAgeGroup(eAgeGroup);
+     if (eYear) {
+         fnSetSelectedYear(eYear);
+     }
+     if (eAreaID) {
+         fnSetSelectedArea(eAreaID);
+     }
+     if (eSex) {
+         fnSetSelectedSex(eSex);
+     }
+     if (eAgeGroup) {
+         fnSetSelectedAgeGroup(eAgeGroup);
+     }
      
      // leave setting of event code at the moment
      // fnSetEventCellVisibility(thisAgeGroup, thisSex);
@@ -236,6 +245,7 @@ function fnGotoList(eventElement) {
                 1. Year:
             </td>
             <td>
+                <a id="year2026" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2026</a> | 
                 <a id="year2025" class="potRSSelected" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2025</a> | 
                 <a id="year2024" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2024</a> | 
                 <a id="year2023" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2023</a> | 
@@ -257,7 +267,7 @@ function fnGotoList(eventElement) {
                 <a id="year2007" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2007</a> | 
                 <a id="year2006" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">2006</a> | 
                 <a id="year0" class="potRSNormal" onclick="fnSetSelectedYear(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);"> All Time</a> 
-                <input name="ctl00$cphBody$potrankingstoolbar$hidYear" type="hidden" id="cphBody_potrankingstoolbar_hidYear" value="2025">
+                <input name="ctl00$cphBody$potrankingstoolbar$hidYear" type="hidden" id="cphBody_potrankingstoolbar_hidYear" value="{{ ranking_current_year|default(2026) }}">
             </td>
         </tr>
         <tr>
@@ -285,7 +295,7 @@ function fnGotoList(eventElement) {
                 <a id="area93" class="potRSNormal" onclick="fnSetSelectedArea(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Wales</a> | 
                 <a id="area64" class="potRSNormal" onclick="fnSetSelectedArea(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">West Midlands</a> | 
                 <a id="area62" class="potRSNormal" onclick="fnSetSelectedArea(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Yorkshire</a>
-                <input name="ctl00$cphBody$potrankingstoolbar$hidAreaID" type="hidden" id="cphBody_potrankingstoolbar_hidAreaID" value="0">
+                <input name="ctl00$cphBody$potrankingstoolbar$hidAreaID" type="hidden" id="cphBody_potrankingstoolbar_hidAreaID" value="{{ ranking_current_area|default('0') }}">
             </td>
         </tr>
         <tr>
@@ -302,7 +312,7 @@ function fnGotoList(eventElement) {
                 <a id="sexM" class="potRSSelected" onclick="fnSetSelectedSex(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Men</a> | 
                 <a id="sexW" class="potRSNormal" onclick="fnSetSelectedSex(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Women</a> | 
                 <a id="sexX" class="potRSNormal" onclick="fnSetSelectedSex(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Mixed</a>
-                <input name="ctl00$cphBody$potrankingstoolbar$hidSex" type="hidden" id="cphBody_potrankingstoolbar_hidSex" value="M">
+                <input name="ctl00$cphBody$potrankingstoolbar$hidSex" type="hidden" id="cphBody_potrankingstoolbar_hidSex" value="{{ ranking_current_sex|default('M') }}">
             </td>
         </tr>
         <tr>
@@ -322,8 +332,8 @@ function fnGotoList(eventElement) {
                 <a id="agU15" class="potRSNormal" onclick="fnSetSelectedAgeGroup(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Under 15</a> | 
                 <a id="agU13" class="potRSNormal" onclick="fnSetSelectedAgeGroup(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Under 13</a> | 
                 <a id="agDIS" class="potRSNormal" onclick="fnSetSelectedAgeGroup(this);" onmouseover="onRSMouseOver(this);" onmouseout="onRSMouseOut(this);">Disability</a>
-                <input name="ctl00$cphBody$potrankingstoolbar$hidAgeGroup" type="hidden" id="cphBody_potrankingstoolbar_hidAgeGroup" value="ALL">
-                <input name="ctl00$cphBody$potrankingstoolbar$hidEventCode" type="hidden" id="cphBody_potrankingstoolbar_hidEventCode">
+                <input name="ctl00$cphBody$potrankingstoolbar$hidAgeGroup" type="hidden" id="cphBody_potrankingstoolbar_hidAgeGroup" value="{{ ranking_current_agegroup|default('ALL') }}">
+                <input name="ctl00$cphBody$potrankingstoolbar$hidEventCode" type="hidden" id="cphBody_potrankingstoolbar_hidEventCode" value="{{ ranking_current_event_code|default('') }}">
             </td>
         </tr>
         <tr>
@@ -379,4 +389,3 @@ function fnGotoList(eventElement) {
 
     
     
-

@@ -1,15 +1,32 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request, send_from_directory
 
 from .db import get_conn
+from .rankings_support import (
+    age_group_label,
+    area_label,
+    event_aliases,
+    event_label,
+    normalize_key,
+    parse_mark,
+    ranking_direction,
+    section_age_group,
+    sex_label,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSET_ROOT = ROOT / "thepowerof10.info"
+TOOLBAR_MIN_YEAR = 2006
+TOOLBAR_MAX_YEAR = 2026
+TOOLBAR_AREA_IDS = {"0", "61", "62", "63", "64", "65", "66", "67", "68", "69", "91", "92", "93", "94"}
+TOOLBAR_SEXES = {"M", "W", "X"}
+TOOLBAR_AGE_GROUPS = {"ALL", "U20", "U17", "U15", "U13", "DIS"}
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 
@@ -110,6 +127,236 @@ def load_athlete_rows(
     return conn.execute(sql, params).fetchall()
 
 
+def ranking_years(conn) -> list[int]:
+    row = conn.execute(
+        """
+        SELECT
+            MIN(year) AS min_year,
+            MAX(year) AS max_year
+        FROM athlete_performance_sections
+        WHERE year IS NOT NULL
+        """
+    ).fetchone()
+    min_year = row["min_year"] or TOOLBAR_MIN_YEAR
+    max_year = row["max_year"] or date.today().year
+    return list(range(max_year, min_year - 1, -1))
+
+
+def toolbar_year(year: int | None) -> int:
+    if year is None:
+        return 0
+    return max(TOOLBAR_MIN_YEAR, min(TOOLBAR_MAX_YEAR, year))
+
+
+def load_ranking_candidates(conn, *, sex: str, year: int | None):
+    sql = """
+        SELECT
+            a.athlete_id,
+            a.display_name,
+            a.club,
+            a.gender,
+            s.title AS section_title,
+            s.year AS section_year,
+            p.source_kind,
+            p.event,
+            p.perf,
+            p.pos,
+            p.venue,
+            p.venue_url,
+            p.meeting,
+            p.date_text,
+            p.result_date
+        FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
+        JOIN athletes a ON a.athlete_id = p.athlete_id
+        WHERE
+            COALESCE(p.event, '') <> '' AND
+            COALESCE(p.perf, '') <> ''
+    """
+    params: list[object] = []
+
+    if sex == "M":
+        sql += " AND COALESCE(a.gender, '') = 'Male'"
+    elif sex == "W":
+        sql += " AND COALESCE(a.gender, '') = 'Female'"
+    elif sex == "X":
+        return []
+
+    if year is not None:
+        sql += " AND s.year = %s"
+        params.append(year)
+
+    sql += " ORDER BY a.athlete_id, p.result_date DESC NULLS LAST, p.id DESC"
+    return conn.execute(sql, params).fetchall()
+
+
+def ranking_sort_key(row: dict, direction: str):
+    result_date = row["result_date"] or date.min
+    name = (row["display_name"] or "").lower()
+    if direction == "higher":
+        return (-row["sort_value"], -result_date.toordinal(), name, row["athlete_id"])
+    return (row["sort_value"], -result_date.toordinal(), name, row["athlete_id"])
+
+
+def ranking_row_is_better(candidate: dict, existing: dict, direction: str) -> bool:
+    if direction == "higher":
+        if candidate["sort_value"] > existing["sort_value"]:
+            return True
+        if candidate["sort_value"] < existing["sort_value"]:
+            return False
+    else:
+        if candidate["sort_value"] < existing["sort_value"]:
+            return True
+        if candidate["sort_value"] > existing["sort_value"]:
+            return False
+
+    candidate_date = candidate["result_date"] or date.min
+    existing_date = existing["result_date"] or date.min
+    return candidate_date > existing_date
+
+
+def load_rankings(
+    conn,
+    *,
+    event_code: str,
+    age_group: str,
+    sex: str,
+    selected_year: int | None,
+    all_time: bool,
+    area_id: str,
+    class_code: str,
+    indoor_year: int | None,
+):
+    notes: list[str] = []
+    request_active = bool(event_code)
+    selected_year = None if all_time else selected_year
+    event_name = event_label(event_code) if event_code else ""
+
+    if not event_code:
+        return {
+            "request_active": False,
+            "results": None,
+            "notes": notes,
+        }
+
+    if area_id != "0":
+        notes.append(
+            f"Region/Nation filtering for {area_label(area_id)} is not in the imported data yet, so these rankings use the full database."
+        )
+
+    if indoor_year is not None:
+        notes.append(
+            "Indoor-only ranking splits are not stored separately in this import, so the requested year is shown as a combined view."
+        )
+
+    if class_code:
+        notes.append(
+            "Disability class filtering is not stored in the imported athlete results yet."
+        )
+
+    if sex == "X":
+        notes.append(
+            "Mixed rankings are not derivable from the current athlete-level result data."
+        )
+        return {
+            "request_active": request_active,
+            "results": {
+                "rows": [],
+                "event_code": event_code,
+                "event_label": event_name,
+                "age_group": age_group,
+                "age_group_label": age_group_label(age_group),
+                "sex": sex,
+                "sex_label": sex_label(sex),
+                "scope_label": "All Time" if all_time else str(selected_year or ""),
+                "area_label": area_label(area_id),
+                "athlete_count": 0,
+                "direction": ranking_direction(event_code),
+            },
+            "notes": notes,
+        }
+
+    if age_group == "DIS":
+        notes.append(
+            "Disability rankings need classification fields that are not part of the imported cache yet."
+        )
+        return {
+            "request_active": request_active,
+            "results": {
+                "rows": [],
+                "event_code": event_code,
+                "event_label": event_name,
+                "age_group": age_group,
+                "age_group_label": age_group_label(age_group),
+                "sex": sex,
+                "sex_label": sex_label(sex),
+                "scope_label": "All Time" if all_time else str(selected_year or ""),
+                "area_label": area_label(area_id),
+                "athlete_count": 0,
+                "direction": ranking_direction(event_code),
+            },
+            "notes": notes,
+        }
+
+    aliases = event_aliases(event_code)
+    direction = ranking_direction(event_code)
+    best_by_athlete: dict[int, dict] = {}
+
+    for row in load_ranking_candidates(conn, sex=sex, year=selected_year):
+        if normalize_key(row["event"]) not in aliases:
+            continue
+        if age_group != "ALL" and section_age_group(row["section_title"]) != age_group:
+            continue
+
+        sort_value = parse_mark(row["perf"])
+        if sort_value is None:
+            continue
+
+        candidate = {
+            **row,
+            "sort_value": sort_value,
+        }
+        existing = best_by_athlete.get(row["athlete_id"])
+        if existing is None or ranking_row_is_better(candidate, existing, direction):
+            best_by_athlete[row["athlete_id"]] = candidate
+
+    ranked_rows = sorted(best_by_athlete.values(), key=lambda row: ranking_sort_key(row, direction))
+    last_value: float | None = None
+    current_rank = 0
+    rendered_rows: list[dict] = []
+    for index, row in enumerate(ranked_rows, start=1):
+        if last_value is None or abs(row["sort_value"] - last_value) > 1e-9:
+            current_rank = index
+            last_value = row["sort_value"]
+        rendered_rows.append(
+            {
+                **row,
+                "rank": current_rank,
+            }
+        )
+
+    if not rendered_rows:
+        notes.append("No results matched this combination of event, sex, age group, and year.")
+
+    return {
+        "request_active": request_active,
+        "results": {
+            "rows": rendered_rows,
+            "event_code": event_code,
+            "event_label": event_name,
+            "age_group": age_group,
+            "age_group_label": age_group_label(age_group),
+            "sex": sex,
+            "sex_label": sex_label(sex),
+            "scope_label": "All Time" if all_time else str(selected_year or ""),
+            "area_label": area_label(area_id),
+            "athlete_count": len(rendered_rows),
+            "direction": direction,
+        },
+        "notes": notes,
+    }
+
+
 @app.route("/")
 def home():
     surname = (request.args.get("surname") or "").strip()
@@ -141,16 +388,68 @@ def home():
 @app.route("/rankings")
 @app.route("/rankings/")
 def rankings():
-    return render_template("rankings.html")
+    with get_conn() as conn:
+        years = ranking_years(conn)
+
+    latest_year = years[0] if years else TOOLBAR_MAX_YEAR
+    return render_template(
+        "rankings.html",
+        ranking_current_year=toolbar_year(latest_year),
+        ranking_current_area="0",
+        ranking_current_sex="M",
+        ranking_current_agegroup="ALL",
+        ranking_current_event_code="",
+        ranking_notes=[],
+        ranking_results=None,
+        ranking_request_active=False,
+    )
 
 
 @app.route("/rankings/rankinglist.aspx")
-def rankings_list_redirect():
-    query = request.query_string.decode("utf-8")
-    target = "https://thepowerof10.info/rankings/rankinglist.aspx"
-    if query:
-        target = f"{target}?{query}"
-    return redirect(target, code=302)
+def rankings_list():
+    event_code = (request.args.get("event") or "").strip()
+    age_group = (request.args.get("agegroup") or "ALL").strip().upper()
+    sex = (request.args.get("sex") or "M").strip().upper()
+    area_id = (request.args.get("areaid") or "0").strip()
+    class_code = (request.args.get("class") or "").strip()
+    indoor_year = request.args.get("iyear", type=int)
+    all_time = (request.args.get("alltime") or "").strip().lower() == "y"
+    selected_year = None if all_time else (
+        request.args.get("year", type=int) or indoor_year
+    )
+
+    with get_conn() as conn:
+        years = ranking_years(conn)
+        latest_year = years[0] if years else TOOLBAR_MAX_YEAR
+        if selected_year is None and not all_time:
+            selected_year = latest_year
+        ranking_view = load_rankings(
+            conn,
+            event_code=event_code,
+            age_group=age_group,
+            sex=sex,
+            selected_year=selected_year,
+            all_time=all_time,
+            area_id=area_id,
+            class_code=class_code,
+            indoor_year=indoor_year,
+        )
+
+    toolbar_area = area_id if area_id in TOOLBAR_AREA_IDS else "0"
+    toolbar_sex = sex if sex in TOOLBAR_SEXES else "M"
+    toolbar_age_group = age_group if age_group in TOOLBAR_AGE_GROUPS else "ALL"
+
+    return render_template(
+        "rankings.html",
+        ranking_current_year=0 if all_time else toolbar_year(selected_year),
+        ranking_current_area=toolbar_area,
+        ranking_current_sex=toolbar_sex,
+        ranking_current_agegroup=toolbar_age_group,
+        ranking_current_event_code=event_code,
+        ranking_notes=ranking_view["notes"],
+        ranking_results=ranking_view["results"],
+        ranking_request_active=ranking_view["request_active"],
+    )
 
 
 @app.route("/rankings/disabilityrankinglistrequest.aspx")

@@ -3,5 +3,147 @@
 {% block title %}Rankings{% endblock %}
 
 {% block content %}
-{% include "partials/rankings_toolbar.html" %}
+<div id="pnlMainGeneral">
+  <table>
+    <tbody>
+      <tr>
+        <td><span id="cphBody_lblErrorMessage" style="color:Red;"></span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="cphBody_pnlMain">
+    <table width="100%" cellspacing="0" cellpadding="0">
+      <tbody>
+        <tr>
+          <td valign="top">
+            <table width="100%" cellspacing="0" cellpadding="2">
+              <tbody>
+                <tr class="athleteprofilesubheader">
+                  <td><h2>Rankings</h2></td>
+                </tr>
+              </tbody>
+            </table>
+
+            {% include "partials/rankings_toolbar.html" %}
+
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="2">
+              <tbody>
+                <tr class="athleteprofilesubheader">
+                  <td><b>Results</b></td>
+                </tr>
+              </tbody>
+            </table>
+
+            {% if ranking_notes %}
+            <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
+              <tbody>
+                {% for note in ranking_notes %}
+                <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }}">
+                  <td>{{ note }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <br>
+            {% endif %}
+
+            {% if ranking_results %}
+            <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
+              <tbody>
+                <tr style="background-color:LightGrey">
+                  <td colspan="9">
+                    <b>{{ ranking_results.event_label }}</b>:
+                    {{ ranking_results.sex_label }},
+                    {{ ranking_results.age_group_label }},
+                    {{ ranking_results.scope_label }},
+                    {{ ranking_results.area_label }}
+                  </td>
+                </tr>
+                <tr style="background-color:LightGrey">
+                  <td><b>Rank</b></td>
+                  <td><b>Athlete</b></td>
+                  <td><b>Club</b></td>
+                  <td align="right"><b>Perf</b></td>
+                  <td align="center"><b>Year</b></td>
+                  <td><b>Venue</b></td>
+                  <td><b>Meeting</b></td>
+                  <td align="right"><b>Date</b></td>
+                  <td align="right"><b>Pos</b></td>
+                </tr>
+                {% for row in ranking_results.rows %}
+                <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }}">
+                  <td>{{ row.rank }}</td>
+                  <td><a href="/athletes/{{ row.athlete_id }}">{{ row.display_name }}</a></td>
+                  <td>{{ row.club or '' }}</td>
+                  <td align="right"><b>{{ row.perf }}</b></td>
+                  <td align="center">{{ row.section_year or '' }}</td>
+                  <td>
+                    {% if row.venue_url %}
+                    <a href="{{ row.venue_url }}">{{ row.venue or '' }}</a>
+                    {% else %}
+                    {{ row.venue or '' }}
+                    {% endif %}
+                  </td>
+                  <td>{{ row.meeting or '' }}</td>
+                  <td align="right">{{ row.date_text or '' }}</td>
+                  <td align="right">{{ row.pos or '' }}</td>
+                </tr>
+                {% else %}
+                <tr style="background-color:WhiteSmoke">
+                  <td colspan="9">No rows matched the selected filters.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
+              <tbody>
+                <tr style="background-color:WhiteSmoke">
+                  <td>
+                    Select a year, area, gender, group, and event above to build a ranking list from the imported Power of 10 cache and any appended TruePB results.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            {% endif %}
+          </td>
+
+          <td width="220" valign="top">
+            <table width="100%" cellpadding="0" cellspacing="0" align="center">
+              <tbody>
+                <tr>
+                  <td>
+                    <table width="100%" cellspacing="0" cellpadding="2">
+                      <tbody>
+                        <tr class="athleteprofilesubheader">
+                          <td><b>Data Scope</b></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <table width="100%" cellpadding="3" cellspacing="0" class="alternatingrowspanel">
+                      <tbody>
+                        {% if ranking_results %}
+                        <tr><td>Event: {{ ranking_results.event_label }}</td></tr>
+                        <tr><td>Athletes ranked: {{ ranking_results.athlete_count }}</td></tr>
+                        <tr><td>Sort: {{ 'High to low' if ranking_results.direction == 'higher' else 'Low to high' }}</td></tr>
+                        {% endif %}
+                        <tr><td>These rankings are generated from athlete performance rows already imported into PostgreSQL.</td></tr>
+                        <tr><td>Region/Nation and disability classification filters are not available in the current schema yet.</td></tr>
+                        <tr><td>Age-group filtering is derived from section headers such as `2025 U20 Club`.</td></tr>
+                        <tr><td><a href="/athletes">Browse athletes</a></td></tr>
+                        <tr><td><a href="/">Back to front page</a></td></tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
