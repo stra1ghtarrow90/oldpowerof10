@@ -124,7 +124,13 @@
                 </tr>
                 {% else %}
                 <tr style="background-color:WhiteSmoke">
-                  <td colspan="7">No athletes matched your search.</td>
+                  <td colspan="7">
+                    {% if has_search %}
+                    No athletes matched your search.
+                    {% else %}
+                    Enter a surname, first name, or club to search.
+                    {% endif %}
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>

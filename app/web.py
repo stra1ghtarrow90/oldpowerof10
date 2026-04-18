@@ -468,12 +468,16 @@ def athlete_index():
     club = (request.args.get("club") or "").strip()
     has_search = any([query, surname, first_name, club])
     with get_conn() as conn:
-        athletes = load_athlete_rows(
-            conn,
-            q=query,
-            surname=surname,
-            first_name=first_name,
-            club=club,
+        athletes = (
+            load_athlete_rows(
+                conn,
+                q=query,
+                surname=surname,
+                first_name=first_name,
+                club=club,
+            )
+            if has_search
+            else []
         )
         summary = summary_counts(conn)
 
