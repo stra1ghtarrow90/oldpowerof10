@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Results Lookup{% endblock %}
+
+{% block extra_head %}
+<script type="text/javascript">
+function fnSetResultsDates(dateFrom, dateTo, yearValue) {
+  const dateFromField = document.getElementById("results-date-from");
+  const dateToField = document.getElementById("results-date-to");
+  const yearField = document.getElementById("results-year");
+  if (dateFromField) dateFromField.value = dateFrom || "";
+  if (dateToField) dateToField.value = dateTo || "";
+  if (yearField) yearField.value = yearValue || "0";
+  return false;
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="pnlMainGeneral">
+  <h2>Results</h2>
+  <br>
+
+  <form method="get" action="/results">
+    <table style="background-color: transparent;" width="100%">
+      <tbody>
+        <tr>
+          <td style="width: 50px"><b>Event</b></td>
+          <td>
+            <select name="event" style="width: 220px">
+              <option value="">Any</option>
+              {% for event_name in results_event_options %}
+              <option value="{{ event_name }}" {% if event_name == results_selected_event %}selected{% endif %}>{{ event_name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td style="width: 65px"><b>Meeting</b></td>
+          <td>
+            <input type="text" name="meeting" maxlength="80" value="{{ results_meeting }}" title="Use * to do wildcard searches" style="width:210px;">
+          </td>
+          <td style="width: 60px"><b>Venue</b></td>
+          <td>
+            <input type="text" name="venue" maxlength="60" value="{{ results_venue }}" title="Use * to do wildcard searches" style="width:175px;">
+          </td>
+          <td><i>Use * to do wildcard searches</i></td>
+        </tr>
+        <tr>
+          <td><b>Date</b></td>
+          <td>
+            <input type="text" id="results-date-from" name="date_from" value="{{ results_date_from }}" maxlength="20" style="width:80px;">
+            <b>to</b>
+            <input type="text" id="results-date-to" name="date_to" value="{{ results_date_to }}" maxlength="20" style="width:80px;">
+          </td>
+          <td><b>Year</b></td>
+          <td>
+            <select id="results-year" name="year">
+              <option value="0">Any</option>
+              {% for year in results_year_options %}
+              <option value="{{ year }}" {% if year == results_selected_year %}selected{% endif %}>{{ year }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td colspan="3">
+            <input type="submit" value="Lookup">&nbsp;
+            <input type="button" value="Reset" onclick="window.location='/results';">
+          </td>
+        </tr>
+        {% if results_recent_years %}
+        <tr>
+          <td>&nbsp;</td>
+          <td colspan="6">
+            <b><a href="#" class="ResultsLookupDateLinkNormal" onclick="return fnSetResultsDates('', '', '0');">Recent</a></b>
+            {% for year in results_recent_years %}
+            &nbsp;<b><a href="#" class="ResultsLookupDateLinkNormal" onclick="return fnSetResultsDates('', '', '{{ year }}');">{{ year }}</a></b>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </form>
+
+  <br>
+
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <b>{% if results_has_filters %}Matching Results{% else %}Recent Results{% endif %}</b>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table cellspacing="0" cellpadding="2" rules="none" style="width:100%;border-collapse:collapse;">
+    <tbody>
+      <tr style="background-color:LightGrey;">
+        <td><b>Date</b></td>
+        <td><b>Meeting</b></td>
+        <td><b>Venue</b></td>
+        <td align="center"><b>Events</b></td>
+        <td align="center"><b>Athletes</b></td>
+        <td align="center"><b>Results</b></td>
+      </tr>
+      {% for row in results_meetings %}
+      <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }};">
+        <td>{{ results_date_label(row.meeting_date) }}</td>
+        <td>{{ row.meeting_display or '' }}</td>
+        <td>{{ row.venue_display or '' }}</td>
+        <td align="center">{{ row.event_count }}</td>
+        <td align="center">{{ row.athlete_count }}</td>
+        <td align="center">
+          {% if results_selected_event %}
+          <a href="{{ url_for('results_detail', meeting=row.meeting_key, venue=row.venue_key, date=row.meeting_date.isoformat(), event=results_selected_event) }}">View</a>
+          {% else %}
+          <a href="{{ url_for('results_detail', meeting=row.meeting_key, venue=row.venue_key, date=row.meeting_date.isoformat()) }}">View</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr style="background-color:WhiteSmoke;">
+        <td colspan="6">
+          No meeting results matched this lookup.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

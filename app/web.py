@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+import re
+from collections import defaultdict
+from datetime import date, datetime
 from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request, send_from_directory
@@ -27,6 +29,19 @@ TOOLBAR_MAX_YEAR = 2026
 TOOLBAR_AREA_IDS = {"0", "61", "62", "63", "64", "65", "66", "67", "68", "69", "91", "92", "93", "94"}
 TOOLBAR_SEXES = {"M", "W", "X"}
 TOOLBAR_AGE_GROUPS = {"ALL", "U20", "U17", "U15", "U13", "DIS"}
+RESULTS_MAX_MEETINGS = 250
+RESULTS_DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d %b %Y", "%d %b %y", "%d-%b-%Y", "%d-%b-%y")
+RESULTS_DATE_SQL_TEMPLATE = """
+COALESCE(
+    {alias}.result_date,
+    CASE
+        WHEN {alias}.date_text ~ '^\\d{{4}}-\\d{{2}}-\\d{{2}}$' THEN TO_DATE({alias}.date_text, 'YYYY-MM-DD')
+        WHEN {alias}.date_text ~ '^\\d{{1,2}} [A-Za-z]{{3}} \\d{{4}}$' THEN TO_DATE({alias}.date_text, 'DD Mon YYYY')
+        WHEN {alias}.date_text ~ '^\\d{{1,2}} [A-Za-z]{{3}} \\d{{2}}$' THEN TO_DATE({alias}.date_text, 'DD Mon YY')
+        ELSE NULL
+    END
+)
+"""
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 
@@ -146,6 +161,367 @@ def toolbar_year(year: int | None) -> int:
     if year is None:
         return 0
     return max(TOOLBAR_MIN_YEAR, min(TOOLBAR_MAX_YEAR, year))
+
+
+def effective_result_date_sql(alias: str = "p") -> str:
+    return RESULTS_DATE_SQL_TEMPLATE.format(alias=alias)
+
+
+def parse_results_date(value: str | None) -> date | None:
+    text = (value or "").strip()
+    if not text:
+        return None
+    for fmt in RESULTS_DATE_INPUT_FORMATS:
+        try:
+            if fmt == "%Y-%m-%d":
+                return date.fromisoformat(text)
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def results_date_label(day: date | None) -> str:
+    if day is None:
+        return ""
+    return f"{day.strftime('%a')} {day.day} {day.strftime('%b %Y')}"
+
+
+def results_detail_date_label(day: date | None) -> str:
+    if day is None:
+        return ""
+    return f"{day.day} {day.strftime('%b %Y')}"
+
+
+def results_search_pattern(value: str | None) -> str | None:
+    text = (value or "").strip()
+    if not text:
+        return None
+    pattern = text.replace("*", "%")
+    if "%" not in pattern and "_" not in pattern:
+        pattern = f"%{pattern}%"
+    return pattern
+
+
+def normalize_results_key(value: str | None) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def result_position_value(pos: str | None) -> tuple[int, str]:
+    text = (pos or "").strip()
+    if not text:
+        return (10**9, "")
+    match = re.search(r"\d+", text)
+    if not match:
+        return (10**9, text.lower())
+    return (int(match.group(0)), text.lower())
+
+
+def result_sex_label(gender: str | None) -> str:
+    normalized = (gender or "").strip().lower()
+    if normalized == "male":
+        return "M"
+    if normalized == "female":
+        return "W"
+    return ""
+
+
+def meeting_row_sort_key(row: dict, direction: str) -> tuple[tuple[int, str], float, str]:
+    parsed_mark = parse_mark(row["perf"])
+    if parsed_mark is None:
+        mark_value = 10**9 if direction == "lower" else 10**9
+    elif direction == "lower":
+        mark_value = parsed_mark
+    else:
+        mark_value = -parsed_mark
+    return (
+        result_position_value(row["pos"]),
+        mark_value,
+        (row["display_name"] or "").lower(),
+    )
+
+
+def is_better_mark(candidate: dict, existing: dict | None, direction: str) -> bool:
+    if existing is None:
+        return True
+    if direction == "higher":
+        if candidate["sort_value"] > existing["sort_value"]:
+            return True
+        if candidate["sort_value"] < existing["sort_value"]:
+            return False
+    else:
+        if candidate["sort_value"] < existing["sort_value"]:
+            return True
+        if candidate["sort_value"] > existing["sort_value"]:
+            return False
+
+    candidate_date = candidate["result_date"] or date.min
+    existing_date = existing["result_date"] or date.min
+    return candidate_date >= existing_date
+
+
+def load_results_years(conn) -> list[int]:
+    effective_date = effective_result_date_sql("p")
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT EXTRACT(YEAR FROM {effective_date})::int AS year
+        FROM athlete_performances p
+        WHERE {effective_date} IS NOT NULL
+        ORDER BY year DESC
+        """
+    ).fetchall()
+    return [row["year"] for row in rows if row["year"] is not None]
+
+
+def load_results_events(conn) -> list[str]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT event
+        FROM athlete_performances
+        WHERE COALESCE(BTRIM(event), '') <> ''
+        ORDER BY LOWER(event)
+        """
+    ).fetchall()
+    return [row["event"] for row in rows]
+
+
+def load_result_meetings(
+    conn,
+    *,
+    event: str = "",
+    meeting: str = "",
+    venue: str = "",
+    date_from: date | None = None,
+    date_to: date | None = None,
+    year: int | None = None,
+    limit: int = RESULTS_MAX_MEETINGS,
+):
+    effective_date = effective_result_date_sql("p")
+    sql = f"""
+        SELECT
+            LOWER(BTRIM(COALESCE(p.meeting, ''))) AS meeting_key,
+            LOWER(BTRIM(COALESCE(p.venue, ''))) AS venue_key,
+            {effective_date} AS meeting_date,
+            MIN(NULLIF(BTRIM(COALESCE(p.meeting, '')), '')) AS meeting_display,
+            MIN(NULLIF(BTRIM(COALESCE(p.venue, '')), '')) AS venue_display,
+            COUNT(*) AS performance_count,
+            COUNT(DISTINCT p.athlete_id) AS athlete_count,
+            COUNT(DISTINCT NULLIF(BTRIM(COALESCE(p.event, '')), '')) AS event_count
+        FROM athlete_performances p
+        WHERE
+            COALESCE(BTRIM(p.meeting), '') <> '' AND
+            COALESCE(BTRIM(p.venue), '') <> '' AND
+            {effective_date} IS NOT NULL
+    """
+    params: list[object] = []
+
+    if event:
+        sql += " AND p.event = %s"
+        params.append(event)
+
+    meeting_pattern = results_search_pattern(meeting)
+    if meeting_pattern:
+        sql += " AND COALESCE(p.meeting, '') ILIKE %s"
+        params.append(meeting_pattern)
+
+    venue_pattern = results_search_pattern(venue)
+    if venue_pattern:
+        sql += " AND COALESCE(p.venue, '') ILIKE %s"
+        params.append(venue_pattern)
+
+    if date_from is not None:
+        sql += f" AND {effective_date} >= %s"
+        params.append(date_from)
+
+    if date_to is not None:
+        sql += f" AND {effective_date} <= %s"
+        params.append(date_to)
+
+    if year is not None:
+        sql += f" AND EXTRACT(YEAR FROM {effective_date}) = %s"
+        params.append(year)
+
+    sql += """
+        GROUP BY meeting_key, venue_key, meeting_date
+        ORDER BY meeting_date DESC, meeting_key, venue_key
+        LIMIT %s
+    """
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def load_meeting_rows(
+    conn,
+    *,
+    meeting_key: str,
+    venue_key: str,
+    meeting_date: date,
+    selected_event: str = "",
+):
+    effective_date = effective_result_date_sql("p")
+    sql = f"""
+        SELECT
+            p.id,
+            p.athlete_id,
+            p.source_kind,
+            p.event,
+            p.perf,
+            p.pos,
+            p.venue,
+            p.venue_url,
+            p.meeting,
+            p.date_text,
+            {effective_date} AS result_date,
+            s.year AS section_year,
+            a.display_name,
+            a.club,
+            a.gender,
+            a.age,
+            a.age_group
+        FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
+        JOIN athletes a ON a.athlete_id = p.athlete_id
+        WHERE
+            LOWER(BTRIM(COALESCE(p.meeting, ''))) = %s AND
+            LOWER(BTRIM(COALESCE(p.venue, ''))) = %s AND
+            {effective_date} = %s
+    """
+    params: list[object] = [meeting_key, venue_key, meeting_date]
+
+    if selected_event:
+        sql += " AND p.event = %s"
+        params.append(selected_event)
+
+    sql += """
+        ORDER BY
+            LOWER(COALESCE(p.event, '')),
+            CASE
+                WHEN COALESCE(p.pos, '') ~ '^[0-9]+' THEN CAST(SUBSTRING(p.pos FROM '^[0-9]+') AS INTEGER)
+                ELSE 2147483647
+            END,
+            p.row_order,
+            LOWER(a.display_name)
+    """
+    return conn.execute(sql, params).fetchall()
+
+
+def load_event_bests(conn, meeting_rows: list[dict]) -> tuple[dict[tuple[int, str], dict], dict[tuple[int, str, int], dict]]:
+    athlete_ids = sorted({row["athlete_id"] for row in meeting_rows})
+    events = sorted({row["event"] for row in meeting_rows if row["event"]})
+    if not athlete_ids or not events:
+        return {}, {}
+
+    effective_date = effective_result_date_sql("p")
+    history_rows = conn.execute(
+        f"""
+        SELECT
+            p.athlete_id,
+            p.event,
+            p.perf,
+            {effective_date} AS result_date,
+            s.year AS section_year
+        FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
+        WHERE
+            p.athlete_id = ANY(%s) AND
+            p.event = ANY(%s) AND
+            COALESCE(BTRIM(p.perf), '') <> ''
+        """,
+        (athlete_ids, events),
+    ).fetchall()
+
+    best_overall: dict[tuple[int, str], dict] = {}
+    best_by_year: dict[tuple[int, str, int], dict] = {}
+
+    for row in history_rows:
+        sort_value = parse_mark(row["perf"])
+        if sort_value is None:
+            continue
+        event_name = row["event"] or ""
+        direction = ranking_direction(event_name)
+        candidate = {
+            "perf": row["perf"],
+            "sort_value": sort_value,
+            "result_date": row["result_date"],
+        }
+        overall_key = (row["athlete_id"], event_name)
+        if is_better_mark(candidate, best_overall.get(overall_key), direction):
+            best_overall[overall_key] = candidate
+
+        result_year = row["result_date"].year if row["result_date"] else row["section_year"]
+        if result_year is None:
+            continue
+        year_key = (row["athlete_id"], event_name, result_year)
+        if is_better_mark(candidate, best_by_year.get(year_key), direction):
+            best_by_year[year_key] = candidate
+
+    return best_overall, best_by_year
+
+
+def build_meeting_view(conn, *, meeting_key: str, venue_key: str, meeting_date: date, selected_event: str = ""):
+    rows = load_meeting_rows(
+        conn,
+        meeting_key=meeting_key,
+        venue_key=venue_key,
+        meeting_date=meeting_date,
+        selected_event=selected_event,
+    )
+    if not rows:
+        return None
+
+    best_overall, best_by_year = load_event_bests(conn, rows)
+    rows_by_event: dict[str, list[dict]] = defaultdict(list)
+
+    for row in rows:
+        event_name = row["event"] or "Other"
+        row_year = row["result_date"].year if row["result_date"] else row["section_year"]
+        row_mark = parse_mark(row["perf"])
+        overall = best_overall.get((row["athlete_id"], row["event"] or ""))
+        seasonal = best_by_year.get((row["athlete_id"], row["event"] or "", row_year)) if row_year is not None else None
+
+        flag = ""
+        if row_mark is not None:
+            is_pb = overall is not None and abs(row_mark - overall["sort_value"]) <= 1e-9
+            is_sb = seasonal is not None and abs(row_mark - seasonal["sort_value"]) <= 1e-9
+            if is_pb and is_sb:
+                flag = "SB/PB"
+            elif is_pb:
+                flag = "PB"
+            elif is_sb:
+                flag = "SB"
+
+        rows_by_event[event_name].append(
+            {
+                **row,
+                "sex_label": result_sex_label(row["gender"]),
+                "flag": flag,
+                "sb": seasonal["perf"] if seasonal else "",
+                "pb": overall["perf"] if overall else "",
+            }
+        )
+
+    event_groups: list[dict] = []
+    for event_name in sorted(rows_by_event, key=lambda value: normalize_key(value or "")):
+        direction = ranking_direction(event_name)
+        sorted_rows = sorted(rows_by_event[event_name], key=lambda row: meeting_row_sort_key(row, direction))
+        event_groups.append(
+            {
+                "event": event_name,
+                "anchor": re.sub(r"[^a-z0-9]+", "-", event_name.lower()).strip("-") or "other",
+                "rows": sorted_rows,
+            }
+        )
+
+    first_row = rows[0]
+    return {
+        "meeting_name": first_row["meeting"] or "",
+        "venue_name": first_row["venue"] or "",
+        "meeting_date": meeting_date,
+        "date_label": results_detail_date_label(meeting_date),
+        "event_groups": event_groups,
+        "row_count": len(rows),
+        "athlete_count": len({row["athlete_id"] for row in rows}),
+    }
 
 
 def load_ranking_candidates(conn, *, sex: str, year: int | None):
@@ -462,6 +838,79 @@ def disability_rankings_redirect():
     return redirect(
         "https://thepowerof10.info/rankings/disabilityrankinglistrequest.aspx",
         code=302,
+    )
+
+
+@app.route("/results")
+@app.route("/results/")
+@app.route("/results/resultslookup.aspx")
+def results_lookup():
+    selected_event = (request.args.get("event") or "").strip()
+    meeting = (request.args.get("meeting") or "").strip()
+    venue = (request.args.get("venue") or "").strip()
+    date_from_text = (request.args.get("date_from") or "").strip()
+    date_to_text = (request.args.get("date_to") or "").strip()
+    selected_year = request.args.get("year", type=int) or None
+    has_filters = any([selected_event, meeting, venue, date_from_text, date_to_text, selected_year])
+
+    date_from = parse_results_date(date_from_text)
+    date_to = parse_results_date(date_to_text)
+
+    with get_conn() as conn:
+        event_options = load_results_events(conn)
+        year_options = load_results_years(conn)
+        meetings = load_result_meetings(
+            conn,
+            event=selected_event,
+            meeting=meeting,
+            venue=venue,
+            date_from=date_from,
+            date_to=date_to,
+            year=selected_year,
+        )
+
+    return render_template(
+        "results_lookup.html",
+        results_event_options=event_options,
+        results_year_options=year_options,
+        results_meetings=meetings,
+        results_selected_event=selected_event,
+        results_meeting=meeting,
+        results_venue=venue,
+        results_date_from=date_from_text,
+        results_date_to=date_to_text,
+        results_selected_year=selected_year or 0,
+        results_has_filters=has_filters,
+        results_date_label=results_date_label,
+        results_recent_years=year_options[:4],
+    )
+
+
+@app.route("/results/results.aspx")
+def results_detail():
+    meeting_key = normalize_results_key(request.args.get("meeting"))
+    venue_key = normalize_results_key(request.args.get("venue"))
+    meeting_date = parse_results_date(request.args.get("date"))
+    selected_event = (request.args.get("event") or "").strip()
+
+    if not meeting_key or not venue_key or meeting_date is None:
+        return redirect("/results", code=302)
+
+    with get_conn() as conn:
+        meeting_view = build_meeting_view(
+            conn,
+            meeting_key=meeting_key,
+            venue_key=venue_key,
+            meeting_date=meeting_date,
+            selected_event=selected_event,
+        )
+
+    if meeting_view is None:
+        abort(404)
+
+    return render_template(
+        "results_detail.html",
+        meeting_view=meeting_view,
     )
 
 
