@@ -263,7 +263,7 @@ def build_source_url(row: dict[str, Any], site_root: str) -> str:
     powerof10_url = (row.get("powerof10_url") or "").strip()
     if powerof10_url:
         return powerof10_url
-    return f"{site_root.rstrip('/')}/api/profile/{int(row['runner_id'])}"
+    return f"{site_root.rstrip('/')}/results/"
 
 
 def parse_pg_int(value: str | None) -> int | None:
@@ -693,7 +693,7 @@ def collect_athletes(
                 "perf": perf,
                 "pos": build_position(row),
                 "venue": row.get("race_location"),
-                "venue_url": f"{site_root.rstrip('/')}/api/results/{int(row['race_id'])}",
+                "venue_url": f"{site_root.rstrip('/')}/results/",
                 "meeting": row.get("race_name"),
                 "date_text": date_text,
                 "result_date": race_date,

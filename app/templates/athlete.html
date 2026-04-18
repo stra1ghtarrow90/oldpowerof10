@@ -21,7 +21,13 @@
               <tbody>
                 <tr class="athleteprofilesubheader">
                   <td><h2>{{ athlete.display_name }}</h2></td>
-                  <td style="text-align:right"><b><a href="{{ athlete.source_url }}">Original source</a></b></td>
+                  <td style="text-align:right">
+                    <b>
+                      <a href="{{ 'https://truepb.net/results/' if athlete.source_url and 'truepb.net/api/' in athlete.source_url else athlete.source_url }}">
+                        Original source
+                      </a>
+                    </b>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -188,7 +194,9 @@
                     <td></td>
                     <td></td>
                     <td>
-                      {% if row.venue_url %}
+                      {% if section.source_kind == 'truepb_results' and row.venue %}
+                      <a href="https://truepb.net/results/">{{ row.venue or '' }}</a>
+                      {% elif row.venue_url %}
                       <a href="{{ row.venue_url }}">{{ row.venue or '' }}</a>
                       {% else %}
                       {{ row.venue or '' }}
@@ -222,7 +230,13 @@
                         <tr><td>TruePB rows can be appended as new sections without reimporting the Po10 dump.</td></tr>
                         <tr><td><a href="/athletes">Back to athlete index</a></td></tr>
                         <tr><td><a href="/">Back to front page</a></td></tr>
-                        <tr><td><a href="{{ athlete.source_url }}">Open original profile</a></td></tr>
+                        <tr>
+                          <td>
+                            <a href="{{ 'https://truepb.net/results/' if athlete.source_url and 'truepb.net/api/' in athlete.source_url else athlete.source_url }}">
+                              Open original profile
+                            </a>
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </td>
