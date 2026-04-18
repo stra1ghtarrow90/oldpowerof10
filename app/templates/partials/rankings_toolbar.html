@@ -4,6 +4,63 @@
 
 <script language="javascript" type="text/javascript">
 
+function fnGetHiddenValue(id) {
+    var element = document.getElementById(id);
+    if (!element) {
+        return '';
+    }
+    return element.value || '';
+}
+
+function fnSetHiddenValue(id, value) {
+    var element = document.getElementById(id);
+    if (!element) {
+        return false;
+    }
+    element.value = value;
+    return true;
+}
+
+function fnGetHiddenYear() {
+    return fnGetHiddenValue('cphBody_potrankingstoolbar_hidYear');
+}
+
+function fnSetHiddenYear(value) {
+    return fnSetHiddenValue('cphBody_potrankingstoolbar_hidYear', value);
+}
+
+function fnGetHiddenAreaID() {
+    return fnGetHiddenValue('cphBody_potrankingstoolbar_hidAreaID');
+}
+
+function fnSetHiddenAreaID(value) {
+    return fnSetHiddenValue('cphBody_potrankingstoolbar_hidAreaID', value);
+}
+
+function fnGetHiddenSex() {
+    return fnGetHiddenValue('cphBody_potrankingstoolbar_hidSex');
+}
+
+function fnSetHiddenSex(value) {
+    return fnSetHiddenValue('cphBody_potrankingstoolbar_hidSex', value);
+}
+
+function fnGetHiddenAgeGroup() {
+    return fnGetHiddenValue('cphBody_potrankingstoolbar_hidAgeGroup');
+}
+
+function fnSetHiddenAgeGroup(value) {
+    return fnSetHiddenValue('cphBody_potrankingstoolbar_hidAgeGroup', value);
+}
+
+function fnGetHiddenEventCode() {
+    return fnGetHiddenValue('cphBody_potrankingstoolbar_hidEventCode');
+}
+
+function fnSetHiddenEventCode(value) {
+    return fnSetHiddenValue('cphBody_potrankingstoolbar_hidEventCode', value);
+}
+
 function fnSetSelectedYear(element){
     // unselect everything
     document.getElementById('year2026').className = 'potRSNormal';
@@ -191,6 +248,7 @@ function fnGotoList(eventElement) {
     
     // get eventcode - 1st 5 chars are eAGEX where AGE is age group and X sex
     myEventCode = eventElement.id.substring(5);
+    fnSetHiddenEventCode(myEventCode);
     
     // Get the other ranking parameters from the hidden values
     var myYear = fnGetHiddenYear();
