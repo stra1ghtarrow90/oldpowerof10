@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Athlete Index{% endblock %}
+{% block title %}Athletes Lookup{% endblock %}
 
 {% block content %}
 <div id="pnlMainGeneral">
@@ -17,38 +17,88 @@
       <tbody>
         <tr>
           <td valign="top">
-            <table width="100%" cellspacing="0" cellpadding="2">
+            <form method="get" action="/athletes" id="athlete-lookup-form">
+              <table cellspacing="0" cellpadding="0">
+                <tbody>
+                  <tr>
+                    <td width="100">
+                      <h2>Athletes</h2>
+                    </td>
+                    <td>
+                      <b>Surname</b>
+                    </td>
+                    <td style="padding: 0 10px 0 6px;">
+                      <input
+                        type="text"
+                        name="surname"
+                        maxlength="50"
+                        size="20"
+                        value="{{ surname }}"
+                      >
+                    </td>
+                    <td style="white-space: nowrap;">
+                      <b>First Name</b>
+                    </td>
+                    <td style="padding: 0 10px 0 6px;">
+                      <input
+                        type="text"
+                        name="first_name"
+                        maxlength="50"
+                        size="10"
+                        value="{{ first_name }}"
+                      >
+                    </td>
+                    <td>
+                      <b>Club</b>
+                    </td>
+                    <td style="padding: 0 10px 0 6px;">
+                      <input
+                        type="text"
+                        name="club"
+                        maxlength="50"
+                        size="30"
+                        value="{{ club }}"
+                      >
+                    </td>
+                    <td>
+                      <input type="submit" value="Lookup">
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </form>
+
+            {% if query and not surname and not first_name and not club %}
+            <table>
               <tbody>
-                <tr class="athleteprofilesubheader">
-                  <td><h2>Athlete Index</h2></td>
+                <tr>
+                  <td>
+                    Showing quick search matches for <b>{{ query }}</b>.
+                  </td>
                 </tr>
               </tbody>
             </table>
+            {% endif %}
 
-            <table width="100%" cellspacing="0" cellpadding="2">
+            <table>
               <tbody>
-                <tr class="athleteprofilesubheader">
-                  <td><b>Search</b></td>
-                </tr>
                 <tr>
                   <td>
-                    <form method="get" action="/athletes">
-                      <input
-                        type="text"
-                        name="q"
-                        value="{{ query }}"
-                        placeholder="Search by athlete name, club, or athlete id"
-                        style="width:100%;box-sizing:border-box;padding:6px;"
-                      >
-                    </form>
+                    <span id="cphBody_lblRequestErrorMessage" style="color:Red;"></span>
                   </td>
                 </tr>
               </tbody>
             </table>
 
             <br>
+
             <table width="100%" cellspacing="0" cellpadding="2" rules="none" class="alternatingrowspanel">
               <tbody>
+                <tr class="athleteprofilesubheader">
+                  <td colspan="7">
+                    <b>{% if has_search %}Athlete Search Results{% else %}Athlete Index{% endif %}</b>
+                  </td>
+                </tr>
                 <tr style="background-color:LightGrey">
                   <td><b>Name</b></td>
                   <td><b>Club</b></td>
@@ -99,7 +149,7 @@
                         <tr><td>Total performances: {{ performance_count }}</td></tr>
                         <tr><td>Source: imported Po10 cache plus optional TruePB results</td></tr>
                         <tr><td><a href="/">Back to front page</a></td></tr>
-                        <tr><td>New athlete creation is intentionally deferred for now.</td></tr>
+                        <tr><td>Search by surname, first name, or club.</td></tr>
                       </tbody>
                     </table>
                   </td>

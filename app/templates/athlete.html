@@ -151,8 +151,14 @@
                   <tr style="background-color:DarkGray">
                     <td colspan="12">
                       <a name="section-{{ section.id }}">
+                        {% if section.source_kind == 'truepb_results' %}
+                        <b>
+                          {{ section.year if section.year is not none else section.title }}
+                          {% if athlete.club %} {{ athlete.club }}{% endif %} (TRUEPB Results)
+                        </b>
+                        {% else %}
                         <b>{{ section.title }}</b>
-                        {% if section.source_kind == 'truepb_results' %}<span style="font-size:10px;color:#fff;"> [TruePB]</span>{% endif %}
+                        {% endif %}
                       </a>
                     </td>
                   </tr>

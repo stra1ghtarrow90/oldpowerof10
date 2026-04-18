@@ -463,14 +463,28 @@ def disability_rankings_redirect():
 @app.route("/athletes")
 def athlete_index():
     query = (request.args.get("q") or "").strip()
+    surname = (request.args.get("surname") or "").strip()
+    first_name = (request.args.get("first_name") or "").strip()
+    club = (request.args.get("club") or "").strip()
+    has_search = any([query, surname, first_name, club])
     with get_conn() as conn:
-        athletes = load_athlete_rows(conn, q=query)
+        athletes = load_athlete_rows(
+            conn,
+            q=query,
+            surname=surname,
+            first_name=first_name,
+            club=club,
+        )
         summary = summary_counts(conn)
 
     return render_template(
         "index.html",
         athletes=athletes,
         query=query,
+        surname=surname,
+        first_name=first_name,
+        club=club,
+        has_search=has_search,
         athlete_count=summary["athlete_count"],
         performance_count=summary["performance_count"],
     )
