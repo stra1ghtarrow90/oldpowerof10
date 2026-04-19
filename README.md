@@ -113,6 +113,10 @@ That writes one file per athlete to:
 
 - `imports/wayback_profiles/html/<athleteid>.html`
 
+Any failed HTML downloads are written to:
+
+- `imports/wayback_profiles/download_failures.csv`
+
 If the manifest already exists and you only want the HTML download pass:
 
 ```bash

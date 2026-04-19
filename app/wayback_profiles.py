@@ -18,6 +18,7 @@ DEFAULT_OUTPUT_ROOT = Path("imports") / "wayback_profiles"
 DEFAULT_MANIFEST = DEFAULT_OUTPUT_ROOT / "latest_profile_captures.csv"
 DEFAULT_STATE = DEFAULT_OUTPUT_ROOT / "latest_profile_captures.state.json"
 DEFAULT_HTML_DIR = DEFAULT_OUTPUT_ROOT / "html"
+DEFAULT_FAILURE_LOG = DEFAULT_OUTPUT_ROOT / "download_failures.csv"
 DEFAULT_PAGE_LIMIT = 5000
 REQUEST_TIMEOUT = 120
 USER_AGENT = "oldpowerof10-wayback-export/1.0"
@@ -50,6 +51,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_HTML_DIR,
         help="Directory where downloaded HTML files will be written.",
+    )
+    parser.add_argument(
+        "--failure-log",
+        type=Path,
+        default=DEFAULT_FAILURE_LOG,
+        help="CSV path for download failures.",
     )
     parser.add_argument(
         "--limit",
@@ -244,37 +251,79 @@ def read_manifest(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def write_failure_log(path: Path, failures: list[dict[str, str]]) -> None:
+    ensure_parent(path)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["athleteid", "timestamp", "original", "wayback_url", "error"])
+        for row in failures:
+            writer.writerow(
+                [
+                    row["athleteid"],
+                    row["timestamp"],
+                    row["original"],
+                    row["wayback_url"],
+                    row["error"],
+                ]
+            )
+
+
 def download_html_from_manifest(args: argparse.Namespace) -> None:
     rows = read_manifest(args.manifest)
     args.html_dir.mkdir(parents=True, exist_ok=True)
     downloaded = 0
     skipped = 0
+    failed = 0
+    failures: list[dict[str, str]] = []
 
     for index, row in enumerate(rows, start=1):
         athlete_id = row["athleteid"]
         timestamp = row["timestamp"]
         original = row["original"]
         target = args.html_dir / f"{athlete_id}.html"
+        wayback_url = latest_wayback_url(timestamp, original)
 
         if target.exists() and not args.force:
             skipped += 1
             continue
 
-        html = archive_get_bytes(latest_wayback_url(timestamp, original))
+        try:
+            html = archive_get_bytes(wayback_url)
+        except Exception as exc:
+            failed += 1
+            failures.append(
+                {
+                    "athleteid": athlete_id,
+                    "timestamp": timestamp,
+                    "original": original,
+                    "wayback_url": wayback_url,
+                    "error": str(exc),
+                }
+            )
+            print(
+                f"Failed download for athlete {athlete_id} ({index}/{len(rows)}): {exc}",
+                file=sys.stderr,
+            )
+            if args.max_downloads and downloaded >= args.max_downloads:
+                break
+            time.sleep(args.sleep)
+            continue
+
         target.write_bytes(html)
         downloaded += 1
 
         if downloaded % 100 == 0:
             print(
-                f"Downloaded {downloaded} HTML files ({index}/{len(rows)} manifest rows, skipped {skipped})",
+                f"Downloaded {downloaded} HTML files ({index}/{len(rows)} manifest rows, skipped {skipped}, failed {failed})",
                 file=sys.stderr,
             )
         if args.max_downloads and downloaded >= args.max_downloads:
             break
         time.sleep(args.sleep)
 
+    write_failure_log(args.failure_log, failures)
     print(
-        f"HTML download complete: downloaded={downloaded} skipped={skipped} output_dir={args.html_dir}",
+        f"HTML download complete: downloaded={downloaded} skipped={skipped} failed={failed} output_dir={args.html_dir} failure_log={args.failure_log}",
         file=sys.stderr,
     )
 
