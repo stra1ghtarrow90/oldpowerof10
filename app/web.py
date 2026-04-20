@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 
-from flask import Flask, abort, redirect, render_template, request, send_from_directory
+from flask import Flask, abort, redirect, render_template, request, send_from_directory, url_for
 
 from .db import get_conn
 from .rankings_support import (
@@ -216,6 +216,34 @@ def results_search_pattern(value: str | None) -> str | None:
 
 def normalize_results_key(value: str | None) -> str:
     return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def local_results_event_url(
+    *,
+    meeting: str | None,
+    venue: str | None,
+    result_date: date | None,
+    date_text: str | None,
+    event: str | None,
+) -> str | None:
+    meeting_name = (meeting or "").strip()
+    venue_name = (venue or "").strip()
+    event_name = (event or "").strip()
+    meeting_day = result_date or parse_results_date(date_text)
+
+    if meeting_day is None or not (meeting_name or venue_name):
+        return None
+
+    params: dict[str, str] = {
+        "date": meeting_day.isoformat(),
+    }
+    if meeting_name:
+        params["meeting"] = meeting_name
+    if venue_name:
+        params["venue"] = venue_name
+    if event_name:
+        params["event"] = event_name
+    return url_for("results_detail", **params)
 
 
 def result_position_value(pos: str | None) -> tuple[int, str]:
@@ -1110,7 +1138,15 @@ def load_sections(conn, athlete_id: int):
 
     rows_by_section: dict[int, list[dict]] = {}
     for result in performances:
-        rows_by_section.setdefault(result["section_id"], []).append(result)
+        row = dict(result)
+        row["local_results_url"] = local_results_event_url(
+            meeting=row.get("meeting"),
+            venue=row.get("venue"),
+            result_date=row.get("result_date"),
+            date_text=row.get("date_text"),
+            event=row.get("event"),
+        )
+        rows_by_section.setdefault(result["section_id"], []).append(row)
 
     enriched_sections = []
     for section in sections:

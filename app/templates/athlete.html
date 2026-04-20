@@ -188,6 +188,8 @@
                     <td>
                       {% if section.source_kind == 'truepb_results' and row.venue %}
                       <a href="https://truepb.net/results">{{ row.venue or '' }}</a>
+                      {% elif row.local_results_url %}
+                      <a href="{{ row.local_results_url }}">{{ row.venue or '' }}</a>
                       {% elif row.venue_url %}
                       <a href="{{ row.venue_url }}">{{ row.venue or '' }}</a>
                       {% else %}
