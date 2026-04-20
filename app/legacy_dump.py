@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import parse_qs, urlparse
@@ -143,7 +143,12 @@ def parse_result_date(value: str | None) -> date | None:
         return None
     for fmt in ("%d %b %y", "%Y-%m-%d"):
         try:
-            return datetime.strptime(value, fmt).date()
+            parsed = datetime.strptime(value, fmt).date()
+            # Historic Po10 rows often use two-digit years. Python maps 00-68
+            # into 2000-2068, which creates impossible future results like 2066.
+            if fmt == "%d %b %y" and parsed > (date.today() + timedelta(days=366)):
+                parsed = parsed.replace(year=parsed.year - 100)
+            return parsed
         except ValueError:
             continue
     return None
