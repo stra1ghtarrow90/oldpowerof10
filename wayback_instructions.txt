@@ -1,0 +1,247 @@
+Wayback Download + Import Instructions
+======================================
+
+This file covers:
+- how to build the Wayback manifest
+- how to download the archived athlete HTML files
+- how to resume a partial download
+- how to import the downloaded HTML into the PostgreSQL DB
+- what gets skipped or merged during import
+
+
+1. Prerequisites
+----------------
+
+From the repo root:
+
+  /Users/msalter/github/oldpowerof10
+
+Make sure the DB is running before importing:
+
+  docker compose up -d db
+
+If you have changed the app recently, or if this is the first time using the
+Wayback HTML importer, rebuild the web image first so the Python dependencies
+are up to date:
+
+  docker compose build web
+
+
+2. Build The Wayback Manifest
+-----------------------------
+
+This scans the Wayback CDX index and creates a CSV containing the latest saved
+athlete profile capture for each athlete.
+
+Run:
+
+  python3 -m app.wayback_profiles
+
+This writes:
+
+  imports/wayback_profiles/latest_profile_captures.csv
+  imports/wayback_profiles/latest_profile_captures.state.json
+
+Notes:
+- The state JSON lets the CDX scan resume if it is interrupted.
+- This step does NOT download HTML yet.
+
+
+3. Download The Athlete HTML Files
+----------------------------------
+
+To build the manifest and download HTML in one run:
+
+  python3 -m app.wayback_profiles --download
+
+Downloaded files go to:
+
+  imports/wayback_profiles/html/
+
+Each athlete is saved as:
+
+  imports/wayback_profiles/html/<athleteid>.html
+
+Example:
+
+  imports/wayback_profiles/html/13341.html
+
+
+4. Resume A Partial Download
+----------------------------
+
+If the manifest already exists and you want to continue downloading only the
+missing HTML files:
+
+  python3 -m app.wayback_profiles --download-only
+
+Resume behavior:
+- Existing HTML files are skipped automatically
+- Missing HTML files are downloaded
+- Failed downloads are written to:
+
+  imports/wayback_profiles/download_failures.csv
+
+Useful options:
+
+Download a small test batch:
+
+  python3 -m app.wayback_profiles --download --max-downloads 25
+
+Try a slightly shorter delay between requests:
+
+  python3 -m app.wayback_profiles --download-only --sleep 0.05
+
+Force re-download of existing HTML files:
+
+  python3 -m app.wayback_profiles --download-only --force
+
+Important:
+- The download process is mostly network/Wayback limited
+- Adding VM CPU/RAM usually will not help much
+
+
+5. Import The Downloaded HTML Into The DB
+-----------------------------------------
+
+The importer reads the saved HTML files, parses athlete profile data and
+historical performances, then imports them into PostgreSQL.
+
+Standard full import:
+
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html
+
+Small test import:
+
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html \
+    --limit 25
+
+If the manifest CSV is not in the default location, pass it explicitly:
+
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html \
+    --manifest /imports/wayback_profiles/latest_profile_captures.csv
+
+
+6. What The Importer Does
+-------------------------
+
+For each downloaded Wayback athlete profile:
+
+- If the athlete id already exists and already has Power of 10 profile data:
+  it is skipped
+
+- If the athlete id already exists but only has truepb_results:
+  it is enriched in place with the Wayback profile and historical results
+
+- If there is a synthetic TruePB athlete and the importer finds one strong,
+  unambiguous match:
+  it merges the synthetic athlete into the real Po10 athlete id
+
+- If there is no existing match:
+  it inserts a brand-new athlete from Wayback
+
+What gets imported:
+- athlete profile metadata
+- best known performances
+- historical performance sections
+- historical performance rows used by the profile page and /results page
+
+
+7. Import Report
+----------------
+
+After the import, a report is written to:
+
+  imports/wayback_profiles/import_report.csv
+
+This report shows whether each athlete was:
+- inserted as a new Wayback athlete
+- enriched onto an existing truepb-only athlete
+- merged from a synthetic TruePB athlete id
+- skipped because a Po10 profile already exists
+- skipped because the match was ambiguous
+- failed with an error
+
+
+8. Re-running The Importer
+--------------------------
+
+You can run the importer again later after more HTML files have been downloaded:
+
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html
+
+Current behavior:
+- The importer scans all HTML files in the folder each run
+- It does NOT keep a separate imported-files state
+- Already-imported real Po10 athletes are skipped
+- Newly downloaded HTML files can still be imported on later runs
+
+So:
+- download resume is incremental
+- import is safe to rerun, but it is not a strict "new files only" importer
+
+
+9. Recommended Workflow
+-----------------------
+
+First time:
+
+  python3 -m app.wayback_profiles --download
+  docker compose build web
+  docker compose up -d db
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html
+
+Later, after stopping mid-download and resuming:
+
+  python3 -m app.wayback_profiles --download-only
+  docker compose run --rm web python -m app.import_wayback_profiles \
+    --html-dir /imports/wayback_profiles/html
+
+
+10. Useful Checks
+-----------------
+
+Check that HTML files exist:
+
+  ls imports/wayback_profiles/html | head
+
+Count downloaded HTML files:
+
+  find imports/wayback_profiles/html -type f | wc -l
+
+Check the import report:
+
+  sed -n '1,40p' imports/wayback_profiles/import_report.csv
+
+Check athlete counts after import:
+
+  docker compose exec -T db psql -U truepb -d truepb_live -c "select count(*) from athletes;"
+
+Check Wayback sections imported:
+
+  docker compose exec -T db psql -U truepb -d truepb_live -c "select source_kind, count(*) from athlete_performance_sections group by source_kind order by source_kind;"
+
+
+11. Main Files Involved
+-----------------------
+
+Downloader:
+
+  app/wayback_profiles.py
+
+HTML parser:
+
+  app/wayback_html.py
+
+Importer:
+
+  app/import_wayback_profiles.py
+
+Report output:
+
+  imports/wayback_profiles/import_report.csv
