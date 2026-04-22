@@ -177,6 +177,75 @@ That report tells you whether each athlete was:
 - skipped because a Po10 profile already exists
 - skipped because the synthetic match was ambiguous
 
+## Sync Imported Po10 Profiles Back Into TruePB
+
+After you have imported legacy Po10 data and Wayback athlete profiles into `truepb_live`, you can sync those Po10-backed athletes into the original `truepb` database.
+
+What this sync does:
+
+- reads Po10-backed athletes from `truepb_live`
+- skips any athlete id that already exists in target `powerof10_profiles`
+- also skips any athlete id already present in target `powerof10_cache`
+- tries to merge onto an existing target `runner` by:
+  - existing `powerof10_athlete_id`
+  - exact name + club
+  - exact name
+- inserts a new target `runner` only when there is no safe existing match
+- writes target `powerof10_profiles`
+- writes target `powerof10_cache`
+- rebuilds target `powerof10_event_pbs`, `powerof10_event_years`, and `powerof10_performances` for the matched runner
+
+Dry-run first:
+
+```bash
+SOURCE_DATABASE_URL='postgresql://truepb:truepb@localhost:5432/truepb_live' \
+TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+python3 -m app.sync_profiles_to_truepb --dry-run
+```
+
+Limit the first test batch if you want:
+
+```bash
+SOURCE_DATABASE_URL='postgresql://truepb:truepb@localhost:5432/truepb_live' \
+TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+python3 -m app.sync_profiles_to_truepb --dry-run --limit 25
+```
+
+Run the real sync:
+
+```bash
+SOURCE_DATABASE_URL='postgresql://truepb:truepb@localhost:5432/truepb_live' \
+TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+python3 -m app.sync_profiles_to_truepb
+```
+
+Sync just one athlete:
+
+```bash
+SOURCE_DATABASE_URL='postgresql://truepb:truepb@localhost:5432/truepb_live' \
+TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+python3 -m app.sync_profiles_to_truepb --athlete-id 13341
+```
+
+If you want to avoid creating any new target runners while testing matching, add:
+
+```bash
+--skip-insert-runners
+```
+
+The sync writes a CSV report by default to:
+
+- `imports/generated/truepb_profile_sync_report.csv`
+
+That report tells you whether each athlete was:
+
+- skipped because the athlete already exists in target `powerof10_profiles`
+- skipped because the athlete already exists in target `powerof10_cache`
+- merged onto an existing target runner
+- inserted as a new target runner
+- skipped because the target runner match was ambiguous
+- failed with an error
+
 ## Notes
 
 - The importer trusts `powerof10_profiles` for athlete naming and uses `runners` only as supporting metadata.
