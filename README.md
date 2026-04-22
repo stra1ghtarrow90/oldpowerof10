@@ -260,6 +260,83 @@ That report tells you whether each athlete was:
 - skipped because the target runner match was ambiguous
 - failed with an error
 
+## Export Po10 Profiles From A truepb_live Dump Into TruePB
+
+If you prefer not to connect directly from the live source DB into the target `truepb` DB, you can dump `truepb_live` and generate an import SQL file from that dump.
+
+This exporter:
+
+- reads a plain SQL dump of `truepb_live`
+- extracts Po10-backed athletes only
+- checks the live target `truepb` DB so it can:
+  - skip athlete ids already in `powerof10_profiles`
+  - skip athlete ids already in `powerof10_cache`
+  - merge onto an existing `runner` when there is a safe match
+  - create a new `runner` only when needed
+- writes an import SQL file for `truepb`
+- writes a CSV report showing what will happen
+
+Important:
+
+- use a plain SQL dump, not `pg_dump -Fc`
+- this still needs live access to the target `truepb` DB so it can decide what to skip or merge
+
+Create the dump:
+
+```bash
+docker compose exec -T db pg_dump -U truepb -d truepb_live > imports/generated/truepb_live.sql
+```
+
+Build the web image once so the exporter is available:
+
+```bash
+docker compose build web
+```
+
+Generate the import SQL and report:
+
+```bash
+docker compose run --rm \
+  -e TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+  web \
+  python -m app.export_profiles_to_truepb_sql \
+    --sql /imports/generated/truepb_live.sql \
+    --output /imports/generated/po10-sync-into-truepb.sql \
+    --report /imports/generated/po10-sync-report.csv \
+    --verbose
+```
+
+Test a smaller batch first if you want:
+
+```bash
+docker compose run --rm \
+  -e TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+  web \
+  python -m app.export_profiles_to_truepb_sql \
+    --sql /imports/generated/truepb_live.sql \
+    --output /imports/generated/po10-sync-into-truepb.sql \
+    --report /imports/generated/po10-sync-report.csv \
+    --limit 25 \
+    --verbose
+```
+
+If you want to avoid creating new target runners while testing matching:
+
+```bash
+--skip-insert-runners
+```
+
+Then import the generated SQL into the target `truepb` DB:
+
+```bash
+psql 'postgresql://truepb:password@target-host:5432/truepb' < imports/generated/po10-sync-into-truepb.sql
+```
+
+Files written:
+
+- `imports/generated/po10-sync-into-truepb.sql`
+- `imports/generated/po10-sync-report.csv`
+
 ## Notes
 
 - The importer trusts `powerof10_profiles` for athlete naming and uses `runners` only as supporting metadata.
