@@ -211,6 +211,20 @@ TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
 python3 -m app.sync_profiles_to_truepb --dry-run --limit 25
 ```
 
+Run with per-athlete output:
+
+```bash
+SOURCE_DATABASE_URL='postgresql://truepb:truepb@localhost:5432/truepb_live' \
+TARGET_DATABASE_URL='postgresql://truepb:password@target-host:5432/truepb' \
+python3 -m app.sync_profiles_to_truepb --dry-run --verbose
+```
+
+If you do not want full verbose output, the script prints a progress line every `100` athletes by default. Change that with:
+
+```bash
+--progress-every 25
+```
+
 Run the real sync:
 
 ```bash

@@ -166,6 +166,17 @@ def parse_args() -> argparse.Namespace:
         help="Resolve matches and build the report without writing to the target DB.",
     )
     parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print per-athlete progress as the sync runs.",
+    )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=100,
+        help="When not using --verbose, print a progress line every N athletes. Use 0 to disable.",
+    )
+    parser.add_argument(
         "--skip-insert-runners",
         action="store_true",
         help="Do not create new runners in the target DB when no safe merge target exists.",
@@ -626,6 +637,34 @@ def write_report(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def progress_line(index: int, total: int, athlete: SourceAthlete, action: str, reason: str, runner_id: int | None) -> str:
+    runner_text = f" runner_id={runner_id}" if runner_id is not None else ""
+    club_text = f" club={athlete.club}" if athlete.club else ""
+    return (
+        f"[{index}/{total}] athlete_id={athlete.athlete_id} "
+        f"name={athlete.preferred_name}{club_text} "
+        f"action={action} reason={reason}{runner_text}"
+    )
+
+
+def maybe_print_progress(
+    args: argparse.Namespace,
+    *,
+    index: int,
+    total: int,
+    athlete: SourceAthlete,
+    action: str,
+    reason: str,
+    runner_id: int | None,
+) -> None:
+    if args.verbose:
+        print(progress_line(index, total, athlete, action, reason, runner_id), flush=True)
+        return
+
+    if args.progress_every and index % args.progress_every == 0:
+        print(progress_line(index, total, athlete, action, reason, runner_id), flush=True)
+
+
 def update_runner_state(
     runner: TargetRunner,
     athlete: SourceAthlete,
@@ -806,11 +845,20 @@ def process_sync(args: argparse.Namespace) -> None:
     existing_profiles, existing_cache, target_runners = load_target_state(target_dsn)
     indexes = build_runner_indexes(target_runners)
 
+    print(
+        f"Loaded {len(source_athletes)} source athletes, "
+        f"{len(existing_profiles)} target powerof10_profiles, "
+        f"{len(existing_cache)} target powerof10_cache rows, "
+        f"{len(target_runners)} target runners",
+        flush=True,
+    )
+
     report_rows: list[dict[str, Any]] = []
     summary: dict[str, int] = defaultdict(int)
+    total = len(source_athletes)
 
     with psycopg.connect(target_dsn, row_factory=dict_row) as target_conn:
-        for athlete in source_athletes:
+        for index, athlete in enumerate(source_athletes, start=1):
             if athlete.athlete_id in existing_profiles:
                 summary["skip_existing_profile"] += 1
                 report_rows.append(
@@ -823,6 +871,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "runner_id": "",
                         "source_url": athlete.source_url,
                     }
+                )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action="skip_existing_profile",
+                    reason="athlete already exists in target powerof10_profiles",
+                    runner_id=None,
                 )
                 continue
 
@@ -838,6 +895,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "runner_id": "",
                         "source_url": athlete.source_url,
                     }
+                )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action="skip_existing_cache",
+                    reason="athlete already exists in target powerof10_cache",
+                    runner_id=None,
                 )
                 continue
 
@@ -855,6 +921,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "source_url": athlete.source_url,
                     }
                 )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action="skip_ambiguous",
+                    reason=decision.reason,
+                    runner_id=None,
+                )
                 continue
 
             if decision.action == "insert_runner" and args.skip_insert_runners:
@@ -869,6 +944,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "runner_id": "",
                         "source_url": athlete.source_url,
                     }
+                )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action="skip_insert_runner_disabled",
+                    reason="no safe runner match and --skip-insert-runners was set",
+                    runner_id=None,
                 )
                 continue
 
@@ -891,6 +975,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "runner_id": runner_id or "",
                         "source_url": athlete.source_url,
                     }
+                )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action=action,
+                    reason=reason,
+                    runner_id=runner_id,
                 )
                 continue
 
@@ -954,6 +1047,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "source_url": athlete.source_url,
                     }
                 )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action=action,
+                    reason=reason,
+                    runner_id=runner_id,
+                )
             except Exception as exc:
                 summary["error"] += 1
                 report_rows.append(
@@ -966,6 +1068,15 @@ def process_sync(args: argparse.Namespace) -> None:
                         "runner_id": runner_id or "",
                         "source_url": athlete.source_url,
                     }
+                )
+                maybe_print_progress(
+                    args,
+                    index=index,
+                    total=total,
+                    athlete=athlete,
+                    action="error",
+                    reason=str(exc),
+                    runner_id=runner_id,
                 )
 
     report_path = Path(args.report)
