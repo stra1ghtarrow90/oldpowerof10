@@ -149,7 +149,65 @@ def json_value(value: str | None, default: Any) -> Any:
     return json.loads(value)
 
 
-def load_source_athletes_from_dump(sql_path: Path, *, athlete_id: int | None, limit: int | None) -> list[SourceAthlete]:
+def athlete_row_is_po10_candidate(row: dict[str, str | None]) -> bool:
+    if (row.get("profile_name") or "").strip():
+        return True
+    best_headers = json_value(row.get("best_headers"), [])
+    return bool(best_headers)
+
+
+def select_athlete_ids_from_dump(sql_path: Path, *, athlete_id: int | None, limit: int | None) -> set[int] | None:
+    if athlete_id is not None:
+        return {athlete_id}
+    if limit is None:
+        return None
+
+    selected_ids: set[int] = set()
+    current_table: str | None = None
+    current_columns: list[str] = []
+    seen_athletes_table = False
+
+    with sql_path.open("r", encoding="utf-8", errors="replace") as handle:
+        for raw_line in handle:
+            if current_table is None:
+                copy_header = parse_copy_header(raw_line)
+                if copy_header is None:
+                    continue
+                table_name, columns = copy_header
+                if table_name == "athletes":
+                    current_table = table_name
+                    current_columns = columns
+                    seen_athletes_table = True
+                continue
+
+            if raw_line.startswith("\\."):
+                if current_table == "athletes" and seen_athletes_table:
+                    break
+                current_table = None
+                current_columns = []
+                continue
+
+            if current_table != "athletes":
+                continue
+
+            fields = parse_copy_line(raw_line, len(current_columns))
+            row = dict(zip(current_columns, fields))
+            current_athlete_id = int(row["athlete_id"])
+            if len(selected_ids) >= limit:
+                continue
+            if athlete_row_is_po10_candidate(row):
+                selected_ids.add(current_athlete_id)
+
+    return selected_ids
+
+
+def load_source_athletes_from_dump(
+    sql_path: Path,
+    *,
+    athlete_id: int | None,
+    limit: int | None,
+    selected_ids: set[int] | None = None,
+) -> list[SourceAthlete]:
     athletes_meta: dict[int, dict[str, Any]] = {}
     best_rows_by_athlete: dict[int, list[tuple[int, list[str]]]] = defaultdict(list)
     sections_by_id: dict[int, dict[str, Any]] = {}
@@ -188,6 +246,8 @@ def load_source_athletes_from_dump(sql_path: Path, *, athlete_id: int | None, li
                 current_athlete_id = int(row["athlete_id"])
                 if athlete_id is not None and current_athlete_id != athlete_id:
                     continue
+                if selected_ids is not None and current_athlete_id not in selected_ids:
+                    continue
                 athletes_meta[current_athlete_id] = {
                     "athlete_id": current_athlete_id,
                     "display_name": row.get("display_name") or row.get("profile_name") or f"Athlete {current_athlete_id}",
@@ -207,6 +267,8 @@ def load_source_athletes_from_dump(sql_path: Path, *, athlete_id: int | None, li
                 current_athlete_id = int(row["athlete_id"])
                 if athlete_id is not None and current_athlete_id != athlete_id:
                     continue
+                if selected_ids is not None and current_athlete_id not in selected_ids:
+                    continue
                 cells = ["" if value is None else str(value) for value in json_value(row.get("cells"), [])]
                 best_rows_by_athlete[current_athlete_id].append((int(row["row_order"]), cells))
                 continue
@@ -214,6 +276,8 @@ def load_source_athletes_from_dump(sql_path: Path, *, athlete_id: int | None, li
             if current_table == "athlete_performance_sections":
                 current_athlete_id = int(row["athlete_id"])
                 if athlete_id is not None and current_athlete_id != athlete_id:
+                    continue
+                if selected_ids is not None and current_athlete_id not in selected_ids:
                     continue
                 if row.get("source_kind") == "truepb_results":
                     continue
@@ -873,10 +937,21 @@ def main() -> None:
     sql_path = Path(args.sql)
     target_dsn = require_dsn(args.target_dsn, "--target-dsn")
 
+    print(f"Scanning source dump: {sql_path}", flush=True)
+    selected_ids = select_athlete_ids_from_dump(
+        sql_path,
+        athlete_id=args.athlete_id,
+        limit=args.limit,
+    )
+    if selected_ids is not None:
+        print(f"Selected {len(selected_ids)} athlete ids for extraction", flush=True)
+
+    print("Loading selected athlete records from dump", flush=True)
     source_athletes = load_source_athletes_from_dump(
         sql_path,
         athlete_id=args.athlete_id,
         limit=args.limit,
+        selected_ids=selected_ids,
     )
     planned, report_rows, summary = plan_exports(
         source_athletes,
