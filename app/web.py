@@ -442,6 +442,88 @@ def overlay_best_rows_for_year(
     return target_headers, updated_rows
 
 
+def load_generated_best_table(conn, athlete_id: int) -> tuple[list[str], list[dict]]:
+    effective_date = effective_result_date_sql("p", "s")
+    rows = conn.execute(
+        f"""
+        SELECT
+            p.event,
+            p.perf,
+            {effective_date} AS result_date,
+            EXTRACT(YEAR FROM {effective_date})::int AS result_year
+        FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
+        WHERE
+            p.athlete_id = %s AND
+            COALESCE(BTRIM(p.event), '') <> '' AND
+            COALESCE(BTRIM(p.perf), '') <> ''
+        ORDER BY result_year DESC NULLS LAST, p.row_order ASC
+        """,
+        (athlete_id,),
+    ).fetchall()
+
+    event_bests: dict[str, dict] = {}
+    years: set[int] = set()
+    for row in rows:
+        event_key = normalize_best_table_event(row["event"])
+        sort_value = parse_mark(row["perf"])
+        if not event_key or sort_value is None:
+            continue
+
+        result_year = row["result_year"]
+        if result_year is not None:
+            years.add(result_year)
+
+        direction = ranking_direction(row["event"] or "")
+        candidate = {
+            "perf": row["perf"],
+            "sort_value": sort_value,
+            "result_date": row["result_date"],
+        }
+        event_best = event_bests.setdefault(
+            event_key,
+            {
+                "label": row["event"],
+                "direction": direction,
+                "pb": None,
+                "years": {},
+            },
+        )
+
+        if is_better_mark(candidate, event_best["pb"], event_best["direction"]):
+            event_best["pb"] = candidate
+            event_best["label"] = row["event"]
+
+        if result_year is not None and is_better_mark(
+            candidate,
+            event_best["years"].get(result_year),
+            event_best["direction"],
+        ):
+            event_best["years"][result_year] = candidate
+
+    if not event_bests:
+        return [], []
+
+    ordered_years = sorted(years, reverse=True)
+    headers = ["Event", "PB", *[str(year) for year in ordered_years]]
+    best_rows = []
+    for row_order, event_key in enumerate(
+        sorted(event_bests, key=lambda item: normalize_best_table_event(event_bests[item]["label"]))
+    ):
+        event_best = event_bests[event_key]
+        cells = [
+            event_best["label"],
+            event_best["pb"]["perf"] if event_best["pb"] else "",
+            *[
+                event_best["years"].get(year, {}).get("perf", "")
+                for year in ordered_years
+            ],
+        ]
+        best_rows.append({"row_order": row_order, "cells": cells})
+
+    return headers, best_rows
+
+
 def load_results_events(conn) -> list[str]:
     rows = conn.execute(
         """
@@ -1331,8 +1413,11 @@ def athlete_profile(athlete_id: int | None = None):
             """,
             (athlete_id,),
         ).fetchall()
+        best_headers = list(athlete["best_headers"] or [])
+        if not best_headers or not best_rows:
+            best_headers, best_rows = load_generated_best_table(conn, athlete_id)
         best_headers, best_rows = overlay_best_rows_for_year(
-            athlete["best_headers"],
+            best_headers,
             best_rows,
             load_truepb_year_bests(conn, athlete_id, TRUEPB_SB_OVERLAY_YEAR),
             year=TRUEPB_SB_OVERLAY_YEAR,
