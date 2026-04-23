@@ -447,8 +447,10 @@ def load_generated_best_table(conn, athlete_id: int) -> tuple[list[str], list[di
     rows = conn.execute(
         f"""
         SELECT
+            p.source_kind,
             p.event,
             p.perf,
+            p.extra,
             {effective_date} AS result_date,
             EXTRACT(YEAR FROM {effective_date})::int AS result_year
         FROM athlete_performances p
@@ -465,6 +467,24 @@ def load_generated_best_table(conn, athlete_id: int) -> tuple[list[str], list[di
     event_bests: dict[str, dict] = {}
     years: set[int] = set()
     for row in rows:
+        extra = row["extra"] if isinstance(row["extra"], dict) else {}
+        event_text = (row["event"] or "").strip()
+        normalized_event = normalize_key(event_text)
+        raw_is_relay = bool(extra.get("is_relay")) or "RELAY" in normalized_event or "SHORTLEG" in normalized_event or "LONGLEG" in normalized_event
+        raw_is_xc = bool(extra.get("is_xc")) or "XC" in normalized_event
+        raw_is_road = bool(extra.get("is_road"))
+        raw_is_track = bool(extra.get("is_track"))
+        has_surface_flags = any(key in extra for key in ("is_road", "is_track", "is_xc", "is_relay"))
+
+        if row["source_kind"] == "truepb_results":
+            if raw_is_relay or raw_is_xc:
+                continue
+            if has_surface_flags and not (raw_is_road or raw_is_track):
+                continue
+
+        if re.fullmatch(r"\d+(?:\.\d+)?(?:K|M)L", normalized_event):
+            continue
+
         event_key = normalize_best_table_event(row["event"])
         sort_value = parse_mark(row["perf"])
         if not event_key or sort_value is None:
