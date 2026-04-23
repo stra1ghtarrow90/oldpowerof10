@@ -30,6 +30,7 @@ TOOLBAR_AREA_IDS = {"0", "61", "62", "63", "64", "65", "66", "67", "68", "69", "
 TOOLBAR_SEXES = {"M", "W", "X"}
 TOOLBAR_AGE_GROUPS = {"ALL", "U20", "U17", "U15", "U13", "DIS"}
 RESULTS_PAGE_SIZE = 250
+TRUEPB_SB_OVERLAY_YEAR = 2026
 RESULTS_DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d %b %Y", "%d %b %y", "%d-%b-%Y", "%d-%b-%y")
 RESULTS_DATE_SQL_TEMPLATE = """
 COALESCE(
@@ -311,6 +312,134 @@ def load_results_years(conn) -> list[int]:
         """
     ).fetchall()
     return [row["year"] for row in rows if row["year"] is not None]
+
+
+def normalize_best_table_event(label: str | None) -> str:
+    key = normalize_key(label)
+    if not key:
+        return ""
+
+    key = key.replace("ROAD", "").replace("TRACK", "")
+    alias_map = {
+        "MARATHON": "MAR",
+        "MAR": "MAR",
+        "HALFMARATHON": "HM",
+        "HM": "HM",
+        "PARKRUN": "PARKRUN",
+        "MILE": "MILE",
+        "5K": "5K",
+        "10K": "10K",
+    }
+    if key in alias_map:
+        return alias_map[key]
+
+    if key.endswith("M") and key[:-1].isdigit():
+        return key[:-1]
+
+    return key
+
+
+def load_truepb_year_bests(conn, athlete_id: int, year: int) -> dict[str, dict]:
+    effective_date = effective_result_date_sql("p", "s")
+    rows = conn.execute(
+        f"""
+        SELECT
+            p.event,
+            p.perf,
+            {effective_date} AS result_date
+        FROM athlete_performances p
+        JOIN athlete_performance_sections s ON s.id = p.section_id
+        WHERE
+            p.athlete_id = %s AND
+            p.source_kind = 'truepb_results' AND
+            COALESCE(BTRIM(p.event), '') <> '' AND
+            COALESCE(BTRIM(p.perf), '') <> '' AND
+            EXTRACT(YEAR FROM {effective_date}) = %s
+        """,
+        (athlete_id, year),
+    ).fetchall()
+
+    bests: dict[str, dict] = {}
+    for row in rows:
+        event_key = normalize_best_table_event(row["event"])
+        sort_value = parse_mark(row["perf"])
+        if not event_key or sort_value is None:
+            continue
+
+        candidate = {
+            "perf": row["perf"],
+            "sort_value": sort_value,
+            "result_date": row["result_date"],
+        }
+        if is_better_mark(candidate, bests.get(event_key), ranking_direction(row["event"] or "")):
+            bests[event_key] = candidate
+
+    return bests
+
+
+def overlay_best_rows_for_year(
+    headers: list[str] | None,
+    best_rows: list[dict],
+    year_bests: dict[str, dict],
+    *,
+    year: int,
+) -> tuple[list[str], list[dict]]:
+    source_headers = [str(header) for header in (headers or [])]
+    if not source_headers:
+        return source_headers, best_rows
+
+    overlay_label = str(year)
+    try:
+        event_idx = source_headers.index("Event")
+        pb_idx = source_headers.index("PB")
+    except ValueError:
+        return source_headers, best_rows
+
+    target_headers = list(source_headers)
+    if overlay_label in target_headers:
+        overlay_idx = target_headers.index(overlay_label)
+    else:
+        overlay_idx = pb_idx + 1
+        target_headers.insert(overlay_idx, overlay_label)
+
+    updated_rows: list[dict] = []
+    for row in best_rows:
+        cells = list(row["cells"] or [])
+        event_label = cells[event_idx] if event_idx < len(cells) else ""
+        event_key = normalize_best_table_event(event_label)
+        year_best = year_bests.get(event_key)
+        overlay_value = year_best["perf"] if year_best else ""
+
+        if overlay_idx < len(cells):
+            cells[overlay_idx] = overlay_value
+        else:
+            while len(cells) < overlay_idx:
+                cells.append("")
+            cells.insert(overlay_idx, overlay_value)
+
+        if year_best and pb_idx < len(cells):
+            existing_pb_value = cells[pb_idx]
+            existing_sort_value = parse_mark(existing_pb_value)
+            existing_pb = (
+                {
+                    "perf": existing_pb_value,
+                    "sort_value": existing_sort_value,
+                    "result_date": None,
+                }
+                if existing_sort_value is not None
+                else None
+            )
+            if is_better_mark(year_best, existing_pb, ranking_direction(event_label or "")):
+                cells[pb_idx] = year_best["perf"]
+
+        updated_rows.append(
+            {
+                **row,
+                "cells": cells,
+            }
+        )
+
+    return target_headers, updated_rows
 
 
 def load_results_events(conn) -> list[str]:
@@ -1202,6 +1331,12 @@ def athlete_profile(athlete_id: int | None = None):
             """,
             (athlete_id,),
         ).fetchall()
+        best_headers, best_rows = overlay_best_rows_for_year(
+            athlete["best_headers"],
+            best_rows,
+            load_truepb_year_bests(conn, athlete_id, TRUEPB_SB_OVERLAY_YEAR),
+            year=TRUEPB_SB_OVERLAY_YEAR,
+        )
         sections = load_sections(conn, athlete_id)
 
     section_nav = sorted(
@@ -1219,6 +1354,7 @@ def athlete_profile(athlete_id: int | None = None):
     return render_template(
         "athlete.html",
         athlete=athlete,
+        best_headers=best_headers,
         best_rows=best_rows,
         sections=sections,
         section_nav=section_nav,

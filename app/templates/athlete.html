@@ -97,9 +97,9 @@
                       <div id="cphBody_divBestPerformances" style="overflow:auto;width:100%;height:220px">
                         <table cellpadding="3" cellspacing="0" rules="none" class="alternatingrowspanel">
                           <tbody>
-                            {% if athlete.best_headers %}
+                            {% if best_headers %}
                             <tr class="bestperformancesheader">
-                              {% for header in athlete.best_headers %}
+                              {% for header in best_headers %}
                               <td><b>{{ header }}</b></td>
                               {% endfor %}
                             </tr>
@@ -107,8 +107,9 @@
                             {% for row in best_rows %}
                             <tr style="background-color:{{ 'WhiteSmoke' if loop.index0 % 2 == 0 else 'Gainsboro' }}">
                               {% for cell in row.cells %}
-                              {% set is_event_col = loop.index0 in [0, 16] %}
-                              {% set is_pb_col = loop.index0 == 1 and cell %}
+                              {% set header = best_headers[loop.index0] if best_headers and loop.index0 < best_headers|length else '' %}
+                              {% set is_event_col = header == 'Event' %}
+                              {% set is_pb_col = header == 'PB' and cell %}
                               <td{% if is_event_col %} class="bestperformancesheader"{% endif %}{% if is_pb_col %} style="background-color:LightPink"{% endif %}>
                                 {% if is_event_col and cell %}<b>{{ cell }}</b>{% else %}{{ cell }}{% endif %}
                               </td>
