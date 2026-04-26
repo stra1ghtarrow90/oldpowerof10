@@ -30,6 +30,7 @@ TOOLBAR_AREA_IDS = {"0", "61", "62", "63", "64", "65", "66", "67", "68", "69", "
 TOOLBAR_SEXES = {"M", "W", "X"}
 TOOLBAR_AGE_GROUPS = {"ALL", "U20", "U17", "U15", "U13", "DIS"}
 RESULTS_PAGE_SIZE = 250
+ALL_TIME_RANKING_LIMIT = 500
 TRUEPB_SB_OVERLAY_YEAR = 2026
 RESULTS_DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d %b %Y", "%d %b %y", "%d-%b-%Y", "%d-%b-%y")
 RESULTS_DATE_SQL_TEMPLATE = """
@@ -1057,6 +1058,12 @@ def load_rankings(
             best_by_athlete[row["athlete_id"]] = candidate
 
     ranked_rows = sorted(best_by_athlete.values(), key=lambda row: ranking_sort_key(row, direction))
+    total_ranked_rows = len(ranked_rows)
+    if all_time and total_ranked_rows > ALL_TIME_RANKING_LIMIT:
+        ranked_rows = ranked_rows[:ALL_TIME_RANKING_LIMIT]
+        notes.append(
+            f"All Time rankings are limited to the top {ALL_TIME_RANKING_LIMIT} rows for performance."
+        )
     last_value: float | None = None
     current_rank = 0
     rendered_rows: list[dict] = []
@@ -1087,6 +1094,7 @@ def load_rankings(
             "scope_label": "All Time" if all_time else str(selected_year or ""),
             "area_label": area_label(area_id),
             "athlete_count": len(rendered_rows),
+            "total_athlete_count": total_ranked_rows,
             "direction": direction,
         },
         "notes": notes,

@@ -128,7 +128,7 @@
                       <tbody>
                         {% if ranking_results %}
                         <tr><td>Event: {{ ranking_results.event_label }}</td></tr>
-                        <tr><td>Athletes ranked: {{ ranking_results.athlete_count }}</td></tr>
+                        <tr><td>Athletes ranked: {{ ranking_results.athlete_count }}{% if ranking_results.total_athlete_count and ranking_results.total_athlete_count != ranking_results.athlete_count %} of {{ ranking_results.total_athlete_count }}{% endif %}</td></tr>
                         <tr><td>Sort: {{ 'High to low' if ranking_results.direction == 'higher' else 'Low to high' }}</td></tr>
                         {% endif %}
                         <tr><td>These rankings are generated from athlete performance rows already imported into PostgreSQL.</td></tr>
