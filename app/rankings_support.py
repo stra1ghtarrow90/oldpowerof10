@@ -115,9 +115,9 @@ def event_aliases(event_code: str) -> set[str]:
     aliases = {normalized_code, normalize_key(label)}
 
     if label.lower() == "half marathon":
-        aliases.add("HM")
+        aliases.update({"HM", "HALFMARATHONRUN"})
     if label.lower() == "marathon":
-        aliases.update({"MAR", "MARATHON"})
+        aliases.update({"MAR", "MARATHON", "MARATHONRUN"})
 
     hurdles_match = re.match(r"^(\d+)", normalized_code)
     if "HURDLES" in normalize_key(label) and hurdles_match:
