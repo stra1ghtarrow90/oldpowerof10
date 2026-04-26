@@ -885,7 +885,14 @@ def build_meeting_view(conn, *, meeting_key: str, venue_key: str, meeting_date: 
     }
 
 
-def load_ranking_candidates(conn, *, sex: str, year: int | None):
+def load_ranking_candidates(
+    conn,
+    *,
+    sex: str,
+    year: int | None,
+    event_codes: set[str] | None = None,
+    age_group: str = "ALL",
+):
     sql = """
         SELECT
             a.athlete_id,
@@ -912,6 +919,14 @@ def load_ranking_candidates(conn, *, sex: str, year: int | None):
     """
     params: list[object] = []
 
+    if event_codes:
+        normalized_events = sorted({code for code in event_codes if code})
+        placeholders = ", ".join(["%s"] * len(normalized_events))
+        sql += f"""
+            AND UPPER(REGEXP_REPLACE(COALESCE(p.event, ''), '[^A-Z0-9]+', '', 'g')) IN ({placeholders})
+        """
+        params.extend(normalized_events)
+
     if sex == "M":
         sql += " AND COALESCE(a.gender, '') = 'Male'"
     elif sex == "W":
@@ -922,6 +937,10 @@ def load_ranking_candidates(conn, *, sex: str, year: int | None):
     if year is not None:
         sql += " AND s.year = %s"
         params.append(year)
+
+    if age_group != "ALL":
+        sql += " AND s.title ~ %s"
+        params.append(rf"^\s*\d{{4}}\s+{re.escape(age_group)}\b")
 
     sql += " ORDER BY a.athlete_id, p.result_date DESC NULLS LAST, p.id DESC"
     return conn.execute(sql, params).fetchall()
@@ -1039,12 +1058,13 @@ def load_rankings(
     direction = ranking_direction(event_code)
     best_by_athlete: dict[int, dict] = {}
 
-    for row in load_ranking_candidates(conn, sex=sex, year=selected_year):
-        if normalize_key(row["event"]) not in aliases:
-            continue
-        if age_group != "ALL" and section_age_group(row["section_title"]) != age_group:
-            continue
-
+    for row in load_ranking_candidates(
+        conn,
+        sex=sex,
+        year=selected_year,
+        event_codes=aliases,
+        age_group=age_group,
+    ):
         sort_value = parse_mark(row["perf"])
         if sort_value is None:
             continue
