@@ -89,6 +89,26 @@ Import it like this:
 docker compose run --rm web python -m app.import_truepb_results --json /imports/examples/truepb-results.sample.json
 ```
 
+## Export TruePB Results From A Dump
+
+To import results from a TruePB PostgreSQL dump into this app's database, first generate an import SQL file:
+
+```bash
+docker compose run --rm web python -m app.export_truepb_results_sql \
+  --sql /imports/legacy/16-04-2026.sql \
+  --year 2026 \
+  --start-date 2026-05-01 \
+  --output /imports/generated/truepb-results-2026-from-2026-05-01.sql
+```
+
+`--start-date` is optional. When provided, only races on or after that date are exported. The generated import SQL refreshes `truepb_results` rows from that date onward while preserving earlier rows from the same year.
+
+Then import the generated SQL:
+
+```bash
+docker compose exec -T db psql -U truepb -d truepb_live < imports/generated/truepb-results-2026-from-2026-05-01.sql
+```
+
 ## Export Wayback Athlete Profiles
 
 To build a CSV of the latest archived Power of 10 athlete profile snapshot for each athlete:
