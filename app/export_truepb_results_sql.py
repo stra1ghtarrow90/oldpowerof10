@@ -286,7 +286,13 @@ def build_source_url(row: dict[str, Any], site_root: str) -> str:
 def parse_pg_int(value: str | None) -> int | None:
     if value in (None, ""):
         return None
-    return int(value)
+    try:
+        return int(value)
+    except ValueError:
+        decimal_value = Decimal(value)
+        if decimal_value == decimal_value.to_integral_value():
+            return int(decimal_value)
+        raise
 
 
 def parse_pg_bool(value: str | None) -> bool:
